@@ -124,6 +124,27 @@ class HtmlWidgetProvider : AppWidgetProvider() {
                     return@forEach
                 }
 
+                if (!website.isNullOrBlank()) {
+
+    val request =
+        androidx.work.OneTimeWorkRequestBuilder<WebsiteRefreshWorker>()
+            .setInputData(
+                androidx.work.workDataOf(
+                    AppWidgetManager.EXTRA_APPWIDGET_ID to id
+                )
+            )
+            .build()
+
+    androidx.work.WorkManager
+        .getInstance(context)
+        .enqueueUniqueWork(
+            "website-refresh-$id",
+            androidx.work.ExistingWorkPolicy.REPLACE,
+            request
+        )
+
+    return@forEach
+                }
                 /*
                  * LOKAL HTML
                  */
