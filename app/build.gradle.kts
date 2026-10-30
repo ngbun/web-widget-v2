@@ -8,7 +8,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "dk.htmlwidget"
+        applicationId = "dk.webwidget"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
