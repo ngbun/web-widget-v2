@@ -82,7 +82,7 @@ class HtmlWidgetProvider : AppWidgetProvider() {
                  * WebsiteRenderActivity.
                  */
                 
-                }
+                
 
                 if (!website.isNullOrBlank()) {
 
