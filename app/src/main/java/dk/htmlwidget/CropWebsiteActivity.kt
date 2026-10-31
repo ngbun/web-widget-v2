@@ -81,11 +81,31 @@ class CropWebsiteActivity : Activity() {
             MODE_PRIVATE
         )
 
-    prefs.edit()
-        .putInt(
-            "cropScrollX_$appWidgetId",
-            webView.scrollX
-        )
+    val contentWidth =
+    webView.computeHorizontalScrollRange()
+        .coerceAtLeast(1)
+
+val contentHeight =
+    webView.computeVerticalScrollRange()
+        .coerceAtLeast(1)
+
+val cropXRatio =
+    webView.scrollX.toFloat() /
+    contentWidth.toFloat()
+
+val cropYRatio =
+    webView.scrollY.toFloat() /
+    contentHeight.toFloat()
+
+prefs.edit()
+    .putFloat(
+        "cropXRatio_$appWidgetId",
+        cropXRatio
+    )
+    .putFloat(
+        "cropYRatio_$appWidgetId",
+        cropYRatio
+    )
         .putInt(
             "cropScrollY_$appWidgetId",
             webView.scrollY
