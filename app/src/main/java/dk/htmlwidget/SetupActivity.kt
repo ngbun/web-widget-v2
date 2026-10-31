@@ -59,6 +59,32 @@ class SetupActivity : Activity() {
         layout.addView(url)
 
         layout.addView(Button(this).apply {
+    text = "Vælg område på websiden"
+
+    setOnClickListener {
+
+        val website =
+            url.text.toString().trim()
+
+        if (website.isEmpty()) {
+            Toast.makeText(
+                this@SetupActivity,
+                "Indtast først en hjemmesideadresse",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return@setOnClickListener
+        }
+
+        Toast.makeText(
+            this@SetupActivity,
+            "Områdevalg kommer i næste trin",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+})
+
+        layout.addView(Button(this).apply {
             text = "Vælg HTML-fil"
 
             setOnClickListener {
