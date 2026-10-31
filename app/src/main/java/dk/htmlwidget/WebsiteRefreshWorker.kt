@@ -724,7 +724,7 @@ class WebsiteRefreshWorker(
 
                             readWorkerCssViewport()
 
-                        }, 6000)
+                        }, 300)
                     }
                 }
 
