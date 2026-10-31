@@ -561,53 +561,136 @@ class CropWebsiteActivity : Activity() {
                             bitmap.height -
                                 cropHeight
                             ).coerceAtLeast(0)
+override fun onTouchEvent(
+    event: MotionEvent
+): Boolean {
 
-                    cropX =
-                        (cropX + deltaX)
-                            .coerceIn(
-                                0,
-                                maxX
-                            )
+    if (displayScale <= 0f) {
+        return false
+    }
 
-                    cropY =
-                        (cropY + deltaY)
-                            .coerceIn(
-                                0,
-                                maxY
-                            )
+    when (event.actionMasked) {
 
-                    lastTouchX =
-                        event.x
+        MotionEvent.ACTION_DOWN -> {
 
-                    lastTouchY =
-                        event.y
+            lastTouchX =
+                event.x
 
-                    invalidate()
+            lastTouchY =
+                event.y
 
-                    return true
-                }
+            /*
+             * ScrollView må stadig overtage,
+             * hvis fingeren begynder at bevæge sig.
+             */
+            parent.requestDisallowInterceptTouchEvent(
+                false
+            )
 
-                MotionEvent.ACTION_UP,
-                MotionEvent.ACTION_CANCEL -> {
+            return true
+        }
 
-                    if (draggingFrame) {
+        MotionEvent.ACTION_MOVE -> {
 
-                        draggingFrame =
-                            false
-
-                        parent.requestDisallowInterceptTouchEvent(
-                            false
-                        )
-
-                        performClick()
-
-                        return true
-                    }
-                }
-            }
+            /*
+             * Vi flytter IKKE rammen her.
+             * ScrollView får lov til at håndtere
+             * den lodrette bevægelse.
+             */
+            parent.requestDisallowInterceptTouchEvent(
+                false
+            )
 
             return false
         }
+
+        MotionEvent.ACTION_UP -> {
+
+            val movedX =
+                kotlin.math.abs(
+                    event.x - lastTouchX
+                )
+
+            val movedY =
+                kotlin.math.abs(
+                    event.y - lastTouchY
+                )
+
+            /*
+             * Kun et almindeligt tryk flytter rammen.
+             * En fingerbevægelse bruges til scrolling.
+             */
+            if (
+                movedX < 30f &&
+                movedY < 30f
+            ) {
+
+                val bitmapX =
+                    (
+                        event.x /
+                            displayScale
+                        ).roundToInt()
+
+                val bitmapY =
+                    (
+                        event.y /
+                            displayScale
+                        ).roundToInt()
+
+                val maxX =
+                    (
+                        bitmap.width -
+                            cropWidth
+                        ).coerceAtLeast(0)
+
+                val maxY =
+                    (
+                        bitmap.height -
+                            cropHeight
+                        ).coerceAtLeast(0)
+
+                /*
+                 * Placér midten af den røde ramme
+                 * dér hvor brugeren trykker.
+                 */
+                cropX =
+                    (
+                        bitmapX -
+                            cropWidth / 2
+                        ).coerceIn(
+                            0,
+                            maxX
+                        )
+
+                cropY =
+                    (
+                        bitmapY -
+                            cropHeight / 2
+                        ).coerceIn(
+                            0,
+                            maxY
+                        )
+
+                invalidate()
+
+                performClick()
+            }
+
+            return true
+        }
+
+        MotionEvent.ACTION_CANCEL -> {
+
+            parent.requestDisallowInterceptTouchEvent(
+                false
+            )
+
+            return false
+        }
+    }
+
+    return false
+}
 
         override fun performClick(): Boolean {
             super.performClick()
