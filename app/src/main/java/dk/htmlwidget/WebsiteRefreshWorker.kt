@@ -165,9 +165,8 @@ class WebsiteRefreshWorker(
             .coerceAtLeast(1)
 
         /*
-         * Bredde som før.
-         * Højden er nu meget større, så område-vælgeren
-         * kan komme langt længere ned på hjemmesiden.
+         * Samme renderstørrelse som den grønne version.
+         * Vi ændrer endnu ikke koordinatsystemet.
          */
         val renderWidth =
             width * 3
@@ -262,7 +261,7 @@ class WebsiteRefreshWorker(
                 web?.draw(canvas)
 
                 /*
-                 * Gem hele previewet.
+                 * Gem hele previewet præcis som før.
                  */
                 val previewFile =
                     File(
@@ -282,7 +281,7 @@ class WebsiteRefreshWorker(
                 }
 
                 /*
-                 * Beskær direkte i samme bitmap.
+                 * Den fungerende bitmap-crop bevares.
                  * Ingen WebView-scroll.
                  */
                 val finalBitmap =
@@ -482,12 +481,32 @@ class WebsiteRefreshWorker(
                         url: String?
                     ) {
 
-                        /*
-                         * Lidt længere ventetid fordi siden nu
-                         * renderes i et meget højere område.
-                         */
                         mainHandler.postDelayed({
 
+                            /*
+                             * Mål den højde WebView rapporterer
+                             * for hele hjemmesidens indhold.
+                             *
+                             * Vi bruger den IKKE til rendering endnu.
+                             * Vi gemmer kun målingen.
+                             */
+                            val pageHeight =
+                                (
+                                    (view?.contentHeight ?: 0) *
+                                        (view?.scale ?: 1f)
+                                    ).roundToInt()
+
+                            prefs.edit()
+                                .putInt(
+                                    "detectedPageHeight_$appWidgetId",
+                                    pageHeight
+                                )
+                                .apply()
+
+                            /*
+                             * Widget og preview renderes fortsat
+                             * på samme måde som den grønne version.
+                             */
                             drawWidget()
 
                         }, 6000)
