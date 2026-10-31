@@ -18,8 +18,6 @@ import android.webkit.WebViewClient
 import android.widget.RemoteViews
 import androidx.work.Worker
 import androidx.work.WorkerParameters
-import java.io.File
-import java.io.FileOutputStream
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
@@ -86,7 +84,7 @@ class WebsiteRefreshWorker(
 
         val completed =
             latch.await(
-                30,
+                35,
                 TimeUnit.SECONDS
             )
 
@@ -122,37 +120,25 @@ class WebsiteRefreshWorker(
             )
 
         /*
-         * NYT:
-         *
-         * Område-vælgeren gemmer nu positionen
-         * relativt til hele hjemmesiden.
+         * De relative koordinater fra
+         * den levende område-vælger.
          */
         val relativeX =
             prefs.getFloat(
                 "cropRelativeX_$appWidgetId",
-                -1f
+                0f
+            ).coerceIn(
+                0f,
+                1f
             )
 
         val relativeY =
             prefs.getFloat(
                 "cropRelativeY_$appWidgetId",
-                -1f
-            )
-
-        /*
-         * De gamle værdier beholdes som fallback,
-         * så eksisterende widgets stadig kan vises.
-         */
-        val oldCropX =
-            prefs.getInt(
-                "cropBitmapX_$appWidgetId",
-                0
-            )
-
-        val oldCropY =
-            prefs.getInt(
-                "cropBitmapY_$appWidgetId",
-                0
+                0f
+            ).coerceIn(
+                0f,
+                1f
             )
 
         val manager =
@@ -170,34 +156,40 @@ class WebsiteRefreshWorker(
                 .displayMetrics
                 .density
 
-        val width = (
-            options.getInt(
-                AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
-                300
-            ) * density
-        ).roundToInt()
-            .coerceAtLeast(1)
+        val width =
+            (
+                options.getInt(
+                    AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
+                    300
+                ) * density
+                ).roundToInt()
+                .coerceAtLeast(1)
 
-        val height = (
-            options.getInt(
-                AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,
-                180
-            ) * density
-        ).roundToInt()
-            .coerceAtLeast(1)
+        val height =
+            (
+                options.getInt(
+                    AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,
+                    180
+                ) * density
+                ).roundToInt()
+                .coerceAtLeast(1)
 
         /*
-         * BEHOLD DEN STABILE RENDERING.
+         * VIGTIGT:
          *
-         * Vi gør IKKE bitmap'et større.
+         * Ikke længere 12 × widgethøjden.
+         *
+         * WebView'en har nu en almindelig viewport.
+         * Vi scroller selve dokumentet til det
+         * valgte område.
          */
         val renderWidth =
-            width * 3
+            (width * 3)
+                .coerceAtLeast(width)
 
         val renderHeight =
-            (height * 12)
-                .coerceAtMost(12000)
-                .coerceAtLeast(height * 3)
+            (height * 3)
+                .coerceAtLeast(height)
 
         val displayManager =
             context.getSystemService(
@@ -224,7 +216,8 @@ class WebsiteRefreshWorker(
         var web: WebView? =
             null
 
-        var completed = false
+        var completed =
+            false
 
         fun cleanup() {
 
@@ -232,7 +225,8 @@ class WebsiteRefreshWorker(
                 return
             }
 
-            completed = true
+            completed =
+                true
 
             try {
                 web?.stopLoading()
@@ -263,7 +257,13 @@ class WebsiteRefreshWorker(
             latch.countDown()
         }
 
-        fun drawWidget() {
+        /*
+         * Tag screenshot af den AKTUELLE viewport.
+         *
+         * WebView'en er allerede scrollet til
+         * det valgte område på dette tidspunkt.
+         */
+        fun captureWidget() {
 
             if (completed) {
                 return
@@ -271,7 +271,7 @@ class WebsiteRefreshWorker(
 
             try {
 
-                val fullBitmap =
+                val viewportBitmap =
                     Bitmap.createBitmap(
                         renderWidth,
                         renderHeight,
@@ -279,136 +279,50 @@ class WebsiteRefreshWorker(
                     )
 
                 val canvas =
-                    Canvas(fullBitmap)
-
-                web?.draw(canvas)
-
-                /*
-                 * Behold preview-filen.
-                 */
-                val previewFile =
-                    File(
-                        context.cacheDir,
-                        "crop_preview_$appWidgetId.png"
+                    Canvas(
+                        viewportBitmap
                     )
 
-                FileOutputStream(
-                    previewFile
-                ).use { output ->
-
-                    fullBitmap.compress(
-                        Bitmap.CompressFormat.PNG,
-                        100,
-                        output
-                    )
-                }
+                web?.draw(
+                    canvas
+                )
 
                 /*
-                 * Maksimal lovlig placering af et
-                 * widget-stort udsnit.
+                 * X-positionen inden for den
+                 * aktuelle viewport.
+                 *
+                 * Lodret position håndteres ved
+                 * at scrolle WebView'en.
                  */
-                val maxX =
+                val maxCropX =
                     (renderWidth - width)
                         .coerceAtLeast(0)
 
-                val maxY =
-                    (renderHeight - height)
-                        .coerceAtLeast(0)
+                val cropX =
+                    (
+                        relativeX *
+                            renderWidth
+                        ).roundToInt()
+                        .coerceIn(
+                            0,
+                            maxCropX
+                        )
 
                 /*
-                 * NYT:
-                 *
-                 * Relative koordinater konverteres
-                 * først HER til bitmap-koordinater.
-                 *
-                 * 0.0 = helt til venstre/top
-                 * 1.0 = helt til højre/bund
+                 * Efter scroll ligger det valgte
+                 * område øverst i WebView'en.
                  */
-                val calculatedCropX =
-                    if (
-                        relativeX >= 0f &&
-                        relativeX <= 1f
-                    ) {
-
-                        (
-                            relativeX *
-                                renderWidth.toFloat()
-                            ).roundToInt()
-                            .coerceIn(
-                                0,
-                                maxX
-                            )
-
-                    } else {
-
-                        oldCropX.coerceIn(
-                            0,
-                            maxX
-                        )
-                    }
-
-                val calculatedCropY =
-                    if (
-                        relativeY >= 0f &&
-                        relativeY <= 1f
-                    ) {
-
-                        (
-                            relativeY *
-                                renderHeight.toFloat()
-                            ).roundToInt()
-                            .coerceIn(
-                                0,
-                                maxY
-                            )
-
-                    } else {
-
-                        oldCropY.coerceIn(
-                            0,
-                            maxY
-                        )
-                    }
-
-                /*
-                 * Gem de beregnede pixelværdier.
-                 *
-                 * Det gør dem nemme at kontrollere
-                 * senere, men relative værdier er
-                 * stadig vores primære valg.
-                 */
-                prefs.edit()
-                    .putInt(
-                        "cropBitmapX_$appWidgetId",
-                        calculatedCropX
-                    )
-                    .putInt(
-                        "cropBitmapY_$appWidgetId",
-                        calculatedCropY
-                    )
-                    .apply()
+                val cropY =
+                    0
 
                 val finalBitmap =
-                    if (cropEnabled) {
-
-                        Bitmap.createBitmap(
-                            fullBitmap,
-                            calculatedCropX,
-                            calculatedCropY,
-                            width,
-                            height
-                        )
-
-                    } else {
-
-                        Bitmap.createBitmap(
-                            fullBitmap,
-                            0,
-                            0,
-                            width,
-                            height
-                        )
-                    }
+                    Bitmap.createBitmap(
+                        viewportBitmap,
+                        cropX,
+                        cropY,
+                        width,
+                        height
+                    )
 
                 val views =
                     RemoteViews(
@@ -426,20 +340,159 @@ class WebsiteRefreshWorker(
                     views
                 )
 
-                /*
-                 * Frigiv vores store bitmap hurtigere.
-                 */
-                if (
-                    finalBitmap !==
-                    fullBitmap
-                ) {
-                    // finalBitmap bruges nu af RemoteViews.
-                }
-
             } catch (_: Exception) {
             } finally {
 
                 cleanup()
+            }
+        }
+
+        /*
+         * Find sidens højde og scroll til
+         * den gemte relative Y-position.
+         */
+        fun moveToSelectedArea() {
+
+            val currentWeb =
+                web
+                    ?: run {
+                        cleanup()
+                        return
+                    }
+
+            if (!cropEnabled) {
+
+                mainHandler.postDelayed({
+
+                    captureWidget()
+
+                }, 1500)
+
+                return
+            }
+
+            /*
+             * Vi spørger den færdige hjemmeside
+             * om dens faktiske scrollbare højde.
+             *
+             * Derefter scrolles til samme relative
+             * sted som brugeren valgte.
+             */
+            val script =
+                """
+                (function() {
+                    var doc = document.documentElement;
+                    var body = document.body;
+
+                    var fullHeight = Math.max(
+                        body ? body.scrollHeight : 0,
+                        body ? body.offsetHeight : 0,
+                        doc ? doc.clientHeight : 0,
+                        doc ? doc.scrollHeight : 0,
+                        doc ? doc.offsetHeight : 0
+                    );
+
+                    var viewportHeight =
+                        window.innerHeight || 1;
+
+                    var maxScroll =
+                        Math.max(
+                            0,
+                            fullHeight - viewportHeight
+                        );
+
+                    var wanted =
+                        Math.round(
+                            maxScroll * $relativeY
+                        );
+
+                    window.scrollTo(
+                        0,
+                        wanted
+                    );
+
+                    return JSON.stringify({
+                        fullHeight: fullHeight,
+                        viewportHeight: viewportHeight,
+                        maxScroll: maxScroll,
+                        wanted: wanted,
+                        actual: window.scrollY
+                    });
+                })();
+                """.trimIndent()
+
+            currentWeb.evaluateJavascript(
+                script
+            ) {
+                /*
+                 * WebView/Chromium skal have tid
+                 * til at tegne den nye position.
+                 *
+                 * Vi tager IKKE screenshot med det
+                 * samme efter scroll.
+                 */
+                mainHandler.postDelayed({
+
+                    /*
+                     * Scroll endnu en gang til den
+                     * samme relative position.
+                     *
+                     * Dette hjælper sider, der ændrer
+                     * højde efter lazy-loading.
+                     */
+                    val secondScript =
+                        """
+                        (function() {
+                            var doc = document.documentElement;
+                            var body = document.body;
+
+                            var fullHeight = Math.max(
+                                body ? body.scrollHeight : 0,
+                                body ? body.offsetHeight : 0,
+                                doc ? doc.clientHeight : 0,
+                                doc ? doc.scrollHeight : 0,
+                                doc ? doc.offsetHeight : 0
+                            );
+
+                            var viewportHeight =
+                                window.innerHeight || 1;
+
+                            var maxScroll =
+                                Math.max(
+                                    0,
+                                    fullHeight - viewportHeight
+                                );
+
+                            var wanted =
+                                Math.round(
+                                    maxScroll * $relativeY
+                                );
+
+                            window.scrollTo(
+                                0,
+                                wanted
+                            );
+
+                            return window.scrollY;
+                        })();
+                        """.trimIndent()
+
+                    currentWeb.evaluateJavascript(
+                        secondScript
+                    ) {
+
+                        /*
+                         * Vent på at den scrollede
+                         * viewport er tegnet.
+                         */
+                        mainHandler.postDelayed({
+
+                            captureWidget()
+
+                        }, 2500)
+                    }
+
+                }, 1500)
             }
         }
 
@@ -483,14 +536,23 @@ class WebsiteRefreshWorker(
 
             web!!.settings.apply {
 
-                javaScriptEnabled = true
-                domStorageEnabled = true
-                loadsImagesAutomatically = true
+                javaScriptEnabled =
+                    true
 
-                useWideViewPort = true
-                loadWithOverviewMode = false
+                domStorageEnabled =
+                    true
 
-                offscreenPreRaster = true
+                loadsImagesAutomatically =
+                    true
+
+                useWideViewPort =
+                    true
+
+                loadWithOverviewMode =
+                    false
+
+                offscreenPreRaster =
+                    true
             }
 
             presentation!!.setContentView(
@@ -575,11 +637,16 @@ class WebsiteRefreshWorker(
                         url: String?
                     ) {
 
+                        /*
+                         * Først lader vi hele siden,
+                         * billeder og JavaScript falde
+                         * på plads.
+                         */
                         mainHandler.postDelayed({
 
-                            drawWidget()
+                            moveToSelectedArea()
 
-                        }, 6000)
+                        }, 5000)
                     }
                 }
 
@@ -588,8 +655,7 @@ class WebsiteRefreshWorker(
             )
 
             /*
-             * Samme sikkerheds-timeout som
-             * den stabile version.
+             * Sikkerheds-timeout.
              */
             mainHandler.postDelayed({
 
@@ -597,7 +663,7 @@ class WebsiteRefreshWorker(
                     cleanup()
                 }
 
-            }, 25000)
+            }, 30000)
 
             true
 
