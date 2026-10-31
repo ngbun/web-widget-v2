@@ -121,13 +121,35 @@ class WebsiteRefreshWorker(
                 false
             )
 
-        val cropX =
+        /*
+         * NYT:
+         *
+         * Område-vælgeren gemmer nu positionen
+         * relativt til hele hjemmesiden.
+         */
+        val relativeX =
+            prefs.getFloat(
+                "cropRelativeX_$appWidgetId",
+                -1f
+            )
+
+        val relativeY =
+            prefs.getFloat(
+                "cropRelativeY_$appWidgetId",
+                -1f
+            )
+
+        /*
+         * De gamle værdier beholdes som fallback,
+         * så eksisterende widgets stadig kan vises.
+         */
+        val oldCropX =
             prefs.getInt(
                 "cropBitmapX_$appWidgetId",
                 0
             )
 
-        val cropY =
+        val oldCropY =
             prefs.getInt(
                 "cropBitmapY_$appWidgetId",
                 0
@@ -165,9 +187,9 @@ class WebsiteRefreshWorker(
             .coerceAtLeast(1)
 
         /*
-         * Stabil version:
-         * Samme bredde som før.
-         * Previewet går op til 12 widgethøjder ned.
+         * BEHOLD DEN STABILE RENDERING.
+         *
+         * Vi gør IKKE bitmap'et større.
          */
         val renderWidth =
             width * 3
@@ -262,7 +284,7 @@ class WebsiteRefreshWorker(
                 web?.draw(canvas)
 
                 /*
-                 * Gem previewet til område-vælgeren.
+                 * Behold preview-filen.
                  */
                 val previewFile =
                     File(
@@ -282,36 +304,97 @@ class WebsiteRefreshWorker(
                 }
 
                 /*
-                 * Beskær direkte i samme bitmap.
-                 * Ingen WebView-scroll.
+                 * Maksimal lovlig placering af et
+                 * widget-stort udsnit.
                  */
-                val finalBitmap =
-                    if (cropEnabled) {
+                val maxX =
+                    (renderWidth - width)
+                        .coerceAtLeast(0)
 
-                        val maxX =
-                            (renderWidth - width)
-                                .coerceAtLeast(0)
+                val maxY =
+                    (renderHeight - height)
+                        .coerceAtLeast(0)
 
-                        val maxY =
-                            (renderHeight - height)
-                                .coerceAtLeast(0)
+                /*
+                 * NYT:
+                 *
+                 * Relative koordinater konverteres
+                 * først HER til bitmap-koordinater.
+                 *
+                 * 0.0 = helt til venstre/top
+                 * 1.0 = helt til højre/bund
+                 */
+                val calculatedCropX =
+                    if (
+                        relativeX >= 0f &&
+                        relativeX <= 1f
+                    ) {
 
-                        val safeX =
-                            cropX.coerceIn(
+                        (
+                            relativeX *
+                                renderWidth.toFloat()
+                            ).roundToInt()
+                            .coerceIn(
                                 0,
                                 maxX
                             )
 
-                        val safeY =
-                            cropY.coerceIn(
+                    } else {
+
+                        oldCropX.coerceIn(
+                            0,
+                            maxX
+                        )
+                    }
+
+                val calculatedCropY =
+                    if (
+                        relativeY >= 0f &&
+                        relativeY <= 1f
+                    ) {
+
+                        (
+                            relativeY *
+                                renderHeight.toFloat()
+                            ).roundToInt()
+                            .coerceIn(
                                 0,
                                 maxY
                             )
 
+                    } else {
+
+                        oldCropY.coerceIn(
+                            0,
+                            maxY
+                        )
+                    }
+
+                /*
+                 * Gem de beregnede pixelværdier.
+                 *
+                 * Det gør dem nemme at kontrollere
+                 * senere, men relative værdier er
+                 * stadig vores primære valg.
+                 */
+                prefs.edit()
+                    .putInt(
+                        "cropBitmapX_$appWidgetId",
+                        calculatedCropX
+                    )
+                    .putInt(
+                        "cropBitmapY_$appWidgetId",
+                        calculatedCropY
+                    )
+                    .apply()
+
+                val finalBitmap =
+                    if (cropEnabled) {
+
                         Bitmap.createBitmap(
                             fullBitmap,
-                            safeX,
-                            safeY,
+                            calculatedCropX,
+                            calculatedCropY,
                             width,
                             height
                         )
@@ -342,6 +425,16 @@ class WebsiteRefreshWorker(
                     appWidgetId,
                     views
                 )
+
+                /*
+                 * Frigiv vores store bitmap hurtigere.
+                 */
+                if (
+                    finalBitmap !==
+                    fullBitmap
+                ) {
+                    // finalBitmap bruges nu af RemoteViews.
+                }
 
             } catch (_: Exception) {
             } finally {
@@ -495,7 +588,8 @@ class WebsiteRefreshWorker(
             )
 
             /*
-             * Sikkerheds-timeout.
+             * Samme sikkerheds-timeout som
+             * den stabile version.
              */
             mainHandler.postDelayed({
 
