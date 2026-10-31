@@ -4,6 +4,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
+        android:name=".WebWidgetApplication"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:label="HTML Widget"
         android:usesCleartextTraffic="true">
@@ -17,16 +18,16 @@
             </intent-filter>
         </activity>
 
-<activity
-    android:name=".WebsiteRenderActivity"
-    android:exported="false"
-    android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+        <activity
+            android:name=".WebsiteRenderActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
 
-<activity
-    android:name=".CropWebsiteActivity"
-    android:exported="false"
-    android:theme="@android:style/Theme.Material.Light.NoActionBar" />
-        
+        <activity
+            android:name=".CropWebsiteActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+
         <service
             android:name=".HtmlRenderService"
             android:exported="false" />
