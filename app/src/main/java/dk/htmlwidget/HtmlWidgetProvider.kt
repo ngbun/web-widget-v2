@@ -10,6 +10,10 @@ import android.widget.RemoteViews
 
 class HtmlWidgetProvider : AppWidgetProvider() {
 
+private var lastClickTime = 0L
+private var lastClickedWidgetId =
+    AppWidgetManager.INVALID_APPWIDGET_ID
+    
     override fun onUpdate(
         context: Context,
         appWidgetManager: AppWidgetManager,
