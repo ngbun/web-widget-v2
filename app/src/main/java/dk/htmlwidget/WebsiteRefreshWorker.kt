@@ -439,38 +439,115 @@ val bitmap =
         width,
         height,
         Bitmap.Config.ARGB_8888
-    )
+override fun onPageFinished(
+    view: WebView?,
+    url: String?
+) {
 
-val canvas =
-    Canvas(bitmap)
+    mainHandler.postDelayed({
 
-web!!.draw(canvas)
+        if (completed) {
+            return@postDelayed
+        }
 
-val views =
-    RemoteViews(
-        context.packageName,
-        R.layout.widget_layout
-    )
+        try {
 
-views.setImageViewBitmap(
-    R.id.widget_image,
-    bitmap
-)
+            if (cropEnabled) {
 
-manager.updateAppWidget(
-    appWidgetId,
-    views
-)
+                web!!.evaluateJavascript(
+                    """
+                    window.scrollTo(
+                        $cropScrollX,
+                        $cropScrollY
+                    );
+                    """.trimIndent()
+                ) {
 
-                            } catch (_: Exception) {
-                            } finally {
-                                cleanup()
-                            }
+                    mainHandler.postDelayed({
 
-                        }, 5000)
-                    }
+                        if (completed) {
+                            return@postDelayed
+                        }
+
+                        try {
+
+                            val bitmap =
+                                Bitmap.createBitmap(
+                                    width,
+                                    height,
+                                    Bitmap.Config.ARGB_8888
+                                )
+
+                            val canvas =
+                                Canvas(bitmap)
+
+                            web!!.draw(canvas)
+
+                            val views =
+                                RemoteViews(
+                                    context.packageName,
+                                    R.layout.widget_layout
+                                )
+
+                            views.setImageViewBitmap(
+                                R.id.widget_image,
+                                bitmap
+                            )
+
+                            manager.updateAppWidget(
+                                appWidgetId,
+                                views
+                            )
+
+                        } catch (_: Exception) {
+                        } finally {
+                            cleanup()
+                        }
+
+                    }, 500)
                 }
 
+                return@postDelayed
+            }
+
+            val bitmap =
+                Bitmap.createBitmap(
+                    width,
+                    height,
+                    Bitmap.Config.ARGB_8888
+                )
+
+            val canvas =
+                Canvas(bitmap)
+
+            web!!.draw(canvas)
+
+            val views =
+                RemoteViews(
+                    context.packageName,
+                    R.layout.widget_layout
+                )
+
+            views.setImageViewBitmap(
+                R.id.widget_image,
+                bitmap
+            )
+
+            manager.updateAppWidget(
+                appWidgetId,
+                views
+            )
+
+        } catch (_: Exception) {
+        } finally {
+
+            if (!cropEnabled) {
+                cleanup()
+            }
+        }
+
+    }, 5000)
+}
             web!!.loadUrl(address)
 
             /*
