@@ -74,8 +74,34 @@ class CropWebsiteActivity : Activity() {
                 text = "Gem dette område"
 
                 setOnClickListener {
-                    finish()
-                }
+
+    val prefs =
+        getSharedPreferences(
+            "settings",
+            MODE_PRIVATE
+        )
+
+    prefs.edit()
+        .putInt(
+            "cropScrollX_$appWidgetId",
+            webView.scrollX
+        )
+        .putInt(
+            "cropScrollY_$appWidgetId",
+            webView.scrollY
+        )
+        .putFloat(
+            "cropScale_$appWidgetId",
+            webView.scale
+        )
+        .putBoolean(
+            "cropEnabled_$appWidgetId",
+            true
+        )
+        .apply()
+
+    finish()
+}
             }
         )
 
