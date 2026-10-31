@@ -197,8 +197,8 @@ val request =
                 WorkManager
                     .getInstance(this@SetupActivity)
                     .enqueueUniquePeriodicWork(
-                        "html-widget-refresh-$appWidgetId",,
-                        ExistingPeriodicWorkPolicy.UPDATE,
+                        "html-widget-refresh-$appWidgetId",
+ExistingPeriodicWorkPolicy.UPDATE,
                         request
                     )
 
