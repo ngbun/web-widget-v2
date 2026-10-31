@@ -115,13 +115,23 @@ class CropWebsiteActivity : Activity() {
                 json.getDouble("height")
                     .coerceAtLeast(1.0)
 
-            val cropXRatio =
-                (json.getDouble("x") / pageWidth)
-                    .toFloat()
+            val maxScrollX =
+    (pageWidth - webView.width)
+        .coerceAtLeast(1.0)
 
-            val cropYRatio =
-                (json.getDouble("y") / pageHeight)
-                    .toFloat()
+val maxScrollY =
+    (pageHeight - webView.height)
+        .coerceAtLeast(1.0)
+
+val cropXRatio =
+    (json.getDouble("x") / maxScrollX)
+        .toFloat()
+        .coerceIn(0f, 1f)
+
+val cropYRatio =
+    (json.getDouble("y") / maxScrollY)
+        .toFloat()
+        .coerceIn(0f, 1f)
 
             prefs.edit()
                 .putFloat(
