@@ -14,6 +14,7 @@ import android.os.Looper
 import android.view.Surface
 import android.view.View
 import android.webkit.WebView
+import android.webkit.WebResourceRequest
 import android.webkit.WebViewClient
 import android.widget.RemoteViews
 import androidx.work.Worker
