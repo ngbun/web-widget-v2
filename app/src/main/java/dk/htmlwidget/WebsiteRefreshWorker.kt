@@ -347,23 +347,30 @@ surfaceTexture.setDefaultBufferSize(
 
                             try {
 
-                                /*
-if (cropEnabled) {
+                               if (cropEnabled) {
 
-    val scrollX =
-        (cropXRatio * web!!.width)
-            .roundToInt()
+    web!!.evaluateJavascript(
+        """
+        (function() {
+            var maxX = Math.max(
+                0,
+                document.documentElement.scrollWidth - window.innerWidth
+            );
 
-    val scrollY =
-        (cropYRatio * web!!.height)
-            .roundToInt()
+            var maxY = Math.max(
+                0,
+                document.documentElement.scrollHeight - window.innerHeight
+            );
 
-    web!!.scrollTo(
-        scrollX,
-        scrollY
+            window.scrollTo(
+                maxX * $cropXRatio,
+                maxY * $cropYRatio
+            );
+        })();
+        """.trimIndent(),
+        null
     )
 }
-*/
 
                                 val bitmap =
     Bitmap.createBitmap(
