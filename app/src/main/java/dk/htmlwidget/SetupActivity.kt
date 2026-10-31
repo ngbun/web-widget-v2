@@ -181,16 +181,23 @@ putInt(
     apply()
 }
 
-                val request =
-                    PeriodicWorkRequestBuilder<RefreshWorker>(
-                        15,
-                        TimeUnit.MINUTES
-                    ).build()
+                val refreshMinutes =
+    refreshValues[refreshSlider.progress]
+
+val request =
+    PeriodicWorkRequestBuilder<RefreshWorker>(
+        refreshMinutes.toLong(),
+        TimeUnit.MINUTES
+    ).setInputData(
+        androidx.work.workDataOf(
+            AppWidgetManager.EXTRA_APPWIDGET_ID to appWidgetId
+        )
+    ).build()
 
                 WorkManager
                     .getInstance(this@SetupActivity)
                     .enqueueUniquePeriodicWork(
-                        "html-widget-refresh",
+                        "html-widget-refresh-$appWidgetId",,
                         ExistingPeriodicWorkPolicy.UPDATE,
                         request
                     )
