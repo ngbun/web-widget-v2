@@ -120,25 +120,43 @@ class WebsiteRefreshWorker(
             )
 
         /*
-         * Placeringen gemt af den levende
-         * område-vælger.
+         * NYE præcise værdier fra
+         * CropWebsiteActivity.
          */
-        val relativeX =
-            prefs.getFloat(
-                "cropRelativeX_$appWidgetId",
-                0f
-            ).coerceIn(
-                0f,
-                1f
+        val cropDocumentX =
+            prefs.getInt(
+                "cropDocumentX_$appWidgetId",
+                0
+            ).coerceAtLeast(0)
+
+        val cropDocumentY =
+            prefs.getInt(
+                "cropDocumentY_$appWidgetId",
+                0
+            ).coerceAtLeast(0)
+
+        val savedViewportWidth =
+            prefs.getInt(
+                "cropViewportWidth_$appWidgetId",
+                0
             )
 
-        val relativeY =
-            prefs.getFloat(
-                "cropRelativeY_$appWidgetId",
-                0f
-            ).coerceIn(
-                0f,
-                1f
+        val savedViewportHeight =
+            prefs.getInt(
+                "cropViewportHeight_$appWidgetId",
+                0
+            )
+
+        val savedSelectionWidth =
+            prefs.getInt(
+                "cropSelectionWidth_$appWidgetId",
+                0
+            )
+
+        val savedSelectionHeight =
+            prefs.getInt(
+                "cropSelectionHeight_$appWidgetId",
+                0
             )
 
         val manager =
@@ -156,7 +174,10 @@ class WebsiteRefreshWorker(
                 .displayMetrics
                 .density
 
-        val width =
+        /*
+         * Widgettens faktiske outputstørrelse.
+         */
+        val widgetWidth =
             (
                 options.getInt(
                     AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
@@ -165,7 +186,7 @@ class WebsiteRefreshWorker(
             ).roundToInt()
                 .coerceAtLeast(1)
 
-        val height =
+        val widgetHeight =
             (
                 options.getInt(
                     AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,
@@ -175,18 +196,34 @@ class WebsiteRefreshWorker(
                 .coerceAtLeast(1)
 
         /*
-         * Vi beholder samme brede WebView som
-         * den stabile worker.
+         * KRITISK ÆNDRING:
          *
-         * Men højden behøver ikke længere være
-         * 12 x widgethøjden.
+         * Hvis der er gemt et område, bruger worker'en
+         * præcis samme viewportbredde som WebView'en
+         * i CropWebsiteActivity.
+         *
+         * Dermed bør responsive hjemmesider få
+         * samme layout begge steder.
          */
         val renderWidth =
-            width * 3
+            if (
+                cropEnabled &&
+                savedViewportWidth > 0
+            ) {
+                savedViewportWidth
+            } else {
+                widgetWidth * 3
+            }.coerceAtLeast(1)
 
         val renderHeight =
-            (height * 3)
-                .coerceAtLeast(height)
+            if (
+                cropEnabled &&
+                savedViewportHeight > 0
+            ) {
+                savedViewportHeight
+            } else {
+                widgetHeight * 3
+            }.coerceAtLeast(1)
 
         val displayManager =
             context.getSystemService(
@@ -252,18 +289,6 @@ class WebsiteRefreshWorker(
             latch.countDown()
         }
 
-        /*
-         * NY CAPTURE-METODE
-         *
-         * WebView'en bliver IKKE scrollet.
-         *
-         * I stedet flytter vi Canvas'en til
-         * det ønskede sted i dokumentet.
-         *
-         * enableSlowWholeDocumentDraw() gør,
-         * at WebView kan tegne indhold uden
-         * for den synlige viewport.
-         */
         fun drawWidget() {
 
             if (completed) {
@@ -280,123 +305,97 @@ class WebsiteRefreshWorker(
                         }
 
                 /*
-                 * Hele dokumentets tegnbare
-                 * størrelse i pixels.
-                 */
-                val documentHeight =
-                    (
-                        currentWeb.contentHeight *
-                            currentWeb.scale
-                    ).roundToInt()
-                        .coerceAtLeast(
-                            renderHeight
-                        )
-
-                /*
-                 * WebView'ens dokumentbredde.
+                 * Områdets størrelse.
                  *
-                 * Vi bruger renderWidth, fordi
-                 * dokumentets responsive layout
-                 * er lavet til denne bredde.
+                 * Ved crop bruger vi præcis samme
+                 * størrelse som den røde ramme havde.
                  */
-                val documentWidth =
-                    renderWidth
+                val selectionWidth =
+                    if (
+                        cropEnabled &&
+                        savedSelectionWidth > 0
+                    ) {
+                        savedSelectionWidth
+                    } else {
+                        widgetWidth
+                    }.coerceAtLeast(1)
+
+                val selectionHeight =
+                    if (
+                        cropEnabled &&
+                        savedSelectionHeight > 0
+                    ) {
+                        savedSelectionHeight
+                    } else {
+                        widgetHeight
+                    }.coerceAtLeast(1)
 
                 /*
-                 * Hvor langt kan et widget-stort
-                 * udsnit flyttes?
-                 */
-                val maxCropX =
-                    (documentWidth - width)
-                        .coerceAtLeast(0)
-
-                val maxCropY =
-                    (documentHeight - height)
-                        .coerceAtLeast(0)
-
-                val selectedX =
-                    if (cropEnabled) {
-
-                        (
-                            relativeX *
-                                maxCropX.toFloat()
-                        ).roundToInt()
-                            .coerceIn(
-                                0,
-                                maxCropX
-                            )
-
-                    } else {
-                        0
-                    }
-
-                val selectedY =
-                    if (cropEnabled) {
-
-                        (
-                            relativeY *
-                                maxCropY.toFloat()
-                        ).roundToInt()
-                            .coerceIn(
-                                0,
-                                maxCropY
-                            )
-
-                    } else {
-                        0
-                    }
-
-                /*
-                 * KUN widget-stort bitmap.
+                 * Vi laver KUN et bitmap på størrelse
+                 * med det valgte område.
                  *
-                 * Vi laver altså IKKE et bitmap
-                 * af hele hjemmesiden.
+                 * Ikke hele hjemmesiden.
                  */
-                val finalBitmap =
+                val selectedBitmap =
                     Bitmap.createBitmap(
-                        width,
-                        height,
+                        selectionWidth,
+                        selectionHeight,
                         Bitmap.Config.ARGB_8888
                     )
 
-                val canvas =
+                val selectedCanvas =
                     Canvas(
-                        finalBitmap
+                        selectedBitmap
                     )
 
-                /*
-                 * Flyt dokumentet modsat vej.
-                 *
-                 * Eksempel:
-                 *
-                 * selectedY = 5000
-                 *
-                 * Canvas flyttes -5000,
-                 * så området omkring y=5000
-                 * bliver tegnet ved toppen af
-                 * vores lille bitmap.
-                 */
-                canvas.save()
-
-                canvas.translate(
-                    -selectedX.toFloat(),
-                    -selectedY.toFloat()
-                )
+                selectedCanvas.save()
 
                 /*
-                 * VIGTIGT:
+                 * Ingen WebView-scroll.
                  *
-                 * Ingen web.scrollTo()
-                 * Ingen JavaScript scrollTo()
-                 *
-                 * WebView'en bliver stående på
-                 * toppen hele tiden.
+                 * Vi flytter kun Canvas'en, så
+                 * dokumentets valgte koordinat
+                 * lander ved 0,0 i bitmap'et.
                  */
+                if (cropEnabled) {
+
+                    selectedCanvas.translate(
+                        -cropDocumentX.toFloat(),
+                        -cropDocumentY.toFloat()
+                    )
+                }
+
                 currentWeb.draw(
-                    canvas
+                    selectedCanvas
                 )
 
-                canvas.restore()
+                selectedCanvas.restore()
+
+                /*
+                 * Den røde ramme har samme form som
+                 * widgetten, men dens pixelstørrelse
+                 * er normalt mindre.
+                 *
+                 * Derfor skaleres det valgte udsnit
+                 * til widgettens faktiske størrelse.
+                 */
+                val finalBitmap =
+                    if (
+                        selectionWidth != widgetWidth ||
+                        selectionHeight != widgetHeight
+                    ) {
+
+                        Bitmap.createScaledBitmap(
+                            selectedBitmap,
+                            widgetWidth,
+                            widgetHeight,
+                            true
+                        )
+
+                    } else {
+
+                        selectedBitmap
+                    }
 
                 val views =
                     RemoteViews(
@@ -415,18 +414,18 @@ class WebsiteRefreshWorker(
                 )
 
                 /*
-                 * Gem den beregnede position.
-                 * Det er praktisk til næste trin
-                 * og som fejlsøgningsdata.
+                 * Behold koordinaterne også i de
+                 * gamle felter til fejlsøgning/
+                 * kompatibilitet.
                  */
                 prefs.edit()
                     .putInt(
                         "cropBitmapX_$appWidgetId",
-                        selectedX
+                        cropDocumentX
                     )
                     .putInt(
                         "cropBitmapY_$appWidgetId",
-                        selectedY
+                        cropDocumentY
                     )
                     .apply()
 
@@ -475,6 +474,10 @@ class WebsiteRefreshWorker(
                 null
             )
 
+            /*
+             * Samme WebView-indstillinger som
+             * CropWebsiteActivity.
+             */
             web!!.settings.apply {
 
                 javaScriptEnabled = true
@@ -486,6 +489,10 @@ class WebsiteRefreshWorker(
                 useWideViewPort = true
 
                 loadWithOverviewMode = false
+
+                builtInZoomControls = false
+
+                displayZoomControls = false
 
                 offscreenPreRaster = true
             }
@@ -505,10 +512,7 @@ class WebsiteRefreshWorker(
                     ): android.webkit.WebResourceResponse? {
 
                         val adBlockEnabled =
-                            context.getSharedPreferences(
-                                "settings",
-                                Context.MODE_PRIVATE
-                            ).getBoolean(
+                            prefs.getBoolean(
                                 "adblock",
                                 true
                             )
@@ -573,9 +577,7 @@ class WebsiteRefreshWorker(
                     ) {
 
                         /*
-                         * Som i den stabile worker:
-                         * giv siden tid til billeder,
-                         * JavaScript osv.
+                         * Behold den stabile ventetid.
                          */
                         mainHandler.postDelayed({
 
@@ -589,9 +591,6 @@ class WebsiteRefreshWorker(
                 address
             )
 
-            /*
-             * Samme sikkerheds-timeout.
-             */
             mainHandler.postDelayed({
 
                 if (!completed) {
@@ -605,7 +604,6 @@ class WebsiteRefreshWorker(
         } catch (_: Exception) {
 
             cleanup()
-
             false
         }
     }
