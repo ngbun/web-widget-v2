@@ -18,8 +18,6 @@ import android.webkit.WebViewClient
 import android.widget.RemoteViews
 import androidx.work.Worker
 import androidx.work.WorkerParameters
-import java.io.File
-import java.io.FileOutputStream
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
@@ -122,19 +120,25 @@ class WebsiteRefreshWorker(
             )
 
         /*
-         * Vi beholder de gamle stabile
-         * bitmap-koordinater som fallback.
+         * Placeringen gemt af den levende
+         * område-vælger.
          */
-        val cropX =
-            prefs.getInt(
-                "cropBitmapX_$appWidgetId",
-                0
+        val relativeX =
+            prefs.getFloat(
+                "cropRelativeX_$appWidgetId",
+                0f
+            ).coerceIn(
+                0f,
+                1f
             )
 
-        val cropY =
-            prefs.getInt(
-                "cropBitmapY_$appWidgetId",
-                0
+        val relativeY =
+            prefs.getFloat(
+                "cropRelativeY_$appWidgetId",
+                0f
+            ).coerceIn(
+                0f,
+                1f
             )
 
         val manager =
@@ -158,7 +162,7 @@ class WebsiteRefreshWorker(
                     AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
                     300
                 ) * density
-                ).roundToInt()
+            ).roundToInt()
                 .coerceAtLeast(1)
 
         val height =
@@ -167,23 +171,22 @@ class WebsiteRefreshWorker(
                     AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,
                     180
                 ) * density
-                ).roundToInt()
+            ).roundToInt()
                 .coerceAtLeast(1)
 
         /*
-         * TILBAGE TIL DEN STABILE STØRRELSE.
+         * Vi beholder samme brede WebView som
+         * den stabile worker.
          *
-         * Ingen dynamisk helside-rendering.
-         * Ingen 30.000 px.
-         * Ingen WebView-scroll.
+         * Men højden behøver ikke længere være
+         * 12 x widgethøjden.
          */
         val renderWidth =
             width * 3
 
         val renderHeight =
-            (height * 12)
-                .coerceAtMost(12000)
-                .coerceAtLeast(height * 3)
+            (height * 3)
+                .coerceAtLeast(height)
 
         val displayManager =
             context.getSystemService(
@@ -249,6 +252,18 @@ class WebsiteRefreshWorker(
             latch.countDown()
         }
 
+        /*
+         * NY CAPTURE-METODE
+         *
+         * WebView'en bliver IKKE scrollet.
+         *
+         * I stedet flytter vi Canvas'en til
+         * det ønskede sted i dokumentet.
+         *
+         * enableSlowWholeDocumentDraw() gør,
+         * at WebView kan tegne indhold uden
+         * for den synlige viewport.
+         */
         fun drawWidget() {
 
             if (completed) {
@@ -257,85 +272,131 @@ class WebsiteRefreshWorker(
 
             try {
 
+                val currentWeb =
+                    web
+                        ?: run {
+                            cleanup()
+                            return
+                        }
+
                 /*
-                 * Tegn WebView'en UDEN at scrolle den.
+                 * Hele dokumentets tegnbare
+                 * størrelse i pixels.
                  */
-                val fullBitmap =
+                val documentHeight =
+                    (
+                        currentWeb.contentHeight *
+                            currentWeb.scale
+                    ).roundToInt()
+                        .coerceAtLeast(
+                            renderHeight
+                        )
+
+                /*
+                 * WebView'ens dokumentbredde.
+                 *
+                 * Vi bruger renderWidth, fordi
+                 * dokumentets responsive layout
+                 * er lavet til denne bredde.
+                 */
+                val documentWidth =
+                    renderWidth
+
+                /*
+                 * Hvor langt kan et widget-stort
+                 * udsnit flyttes?
+                 */
+                val maxCropX =
+                    (documentWidth - width)
+                        .coerceAtLeast(0)
+
+                val maxCropY =
+                    (documentHeight - height)
+                        .coerceAtLeast(0)
+
+                val selectedX =
+                    if (cropEnabled) {
+
+                        (
+                            relativeX *
+                                maxCropX.toFloat()
+                        ).roundToInt()
+                            .coerceIn(
+                                0,
+                                maxCropX
+                            )
+
+                    } else {
+                        0
+                    }
+
+                val selectedY =
+                    if (cropEnabled) {
+
+                        (
+                            relativeY *
+                                maxCropY.toFloat()
+                        ).roundToInt()
+                            .coerceIn(
+                                0,
+                                maxCropY
+                            )
+
+                    } else {
+                        0
+                    }
+
+                /*
+                 * KUN widget-stort bitmap.
+                 *
+                 * Vi laver altså IKKE et bitmap
+                 * af hele hjemmesiden.
+                 */
+                val finalBitmap =
                     Bitmap.createBitmap(
-                        renderWidth,
-                        renderHeight,
+                        width,
+                        height,
                         Bitmap.Config.ARGB_8888
                     )
 
                 val canvas =
-                    Canvas(fullBitmap)
-
-                web?.draw(canvas)
+                    Canvas(
+                        finalBitmap
+                    )
 
                 /*
-                 * Gem preview som før.
+                 * Flyt dokumentet modsat vej.
+                 *
+                 * Eksempel:
+                 *
+                 * selectedY = 5000
+                 *
+                 * Canvas flyttes -5000,
+                 * så området omkring y=5000
+                 * bliver tegnet ved toppen af
+                 * vores lille bitmap.
                  */
-                val previewFile =
-                    File(
-                        context.cacheDir,
-                        "crop_preview_$appWidgetId.png"
-                    )
+                canvas.save()
 
-                FileOutputStream(
-                    previewFile
-                ).use { output ->
-
-                    fullBitmap.compress(
-                        Bitmap.CompressFormat.PNG,
-                        100,
-                        output
-                    )
-                }
+                canvas.translate(
+                    -selectedX.toFloat(),
+                    -selectedY.toFloat()
+                )
 
                 /*
-                 * Beskæring fra det stabile bitmap.
+                 * VIGTIGT:
+                 *
+                 * Ingen web.scrollTo()
+                 * Ingen JavaScript scrollTo()
+                 *
+                 * WebView'en bliver stående på
+                 * toppen hele tiden.
                  */
-                val maxX =
-                    (renderWidth - width)
-                        .coerceAtLeast(0)
+                currentWeb.draw(
+                    canvas
+                )
 
-                val maxY =
-                    (renderHeight - height)
-                        .coerceAtLeast(0)
-
-                val safeX =
-                    cropX.coerceIn(
-                        0,
-                        maxX
-                    )
-
-                val safeY =
-                    cropY.coerceIn(
-                        0,
-                        maxY
-                    )
-
-                val finalBitmap =
-                    if (cropEnabled) {
-
-                        Bitmap.createBitmap(
-                            fullBitmap,
-                            safeX,
-                            safeY,
-                            width,
-                            height
-                        )
-
-                    } else {
-
-                        Bitmap.createBitmap(
-                            fullBitmap,
-                            0,
-                            0,
-                            width,
-                            height
-                        )
-                    }
+                canvas.restore()
 
                 val views =
                     RemoteViews(
@@ -352,6 +413,22 @@ class WebsiteRefreshWorker(
                     appWidgetId,
                     views
                 )
+
+                /*
+                 * Gem den beregnede position.
+                 * Det er praktisk til næste trin
+                 * og som fejlsøgningsdata.
+                 */
+                prefs.edit()
+                    .putInt(
+                        "cropBitmapX_$appWidgetId",
+                        selectedX
+                    )
+                    .putInt(
+                        "cropBitmapY_$appWidgetId",
+                        selectedY
+                    )
+                    .apply()
 
             } catch (_: Exception) {
             } finally {
@@ -401,10 +478,13 @@ class WebsiteRefreshWorker(
             web!!.settings.apply {
 
                 javaScriptEnabled = true
+
                 domStorageEnabled = true
+
                 loadsImagesAutomatically = true
 
                 useWideViewPort = true
+
                 loadWithOverviewMode = false
 
                 offscreenPreRaster = true
@@ -492,6 +572,11 @@ class WebsiteRefreshWorker(
                         url: String?
                     ) {
 
+                        /*
+                         * Som i den stabile worker:
+                         * giv siden tid til billeder,
+                         * JavaScript osv.
+                         */
                         mainHandler.postDelayed({
 
                             drawWidget()
@@ -505,7 +590,7 @@ class WebsiteRefreshWorker(
             )
 
             /*
-             * Samme timeout som den stabile version.
+             * Samme sikkerheds-timeout.
              */
             mainHandler.postDelayed({
 
@@ -520,6 +605,7 @@ class WebsiteRefreshWorker(
         } catch (_: Exception) {
 
             cleanup()
+
             false
         }
     }
