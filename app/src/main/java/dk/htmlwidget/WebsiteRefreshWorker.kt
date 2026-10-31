@@ -1,4 +1,3 @@
-
 package dk.htmlwidget
 
 import android.app.Presentation
@@ -13,8 +12,8 @@ import android.os.Handler
 import android.os.Looper
 import android.view.Surface
 import android.view.View
-import android.webkit.WebView
 import android.webkit.WebResourceRequest
+import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.RemoteViews
 import androidx.work.Worker
@@ -68,7 +67,8 @@ class WebsiteRefreshWorker(
             return Result.success()
         }
 
-        val latch = CountDownLatch(1)
+        val latch =
+            CountDownLatch(1)
 
         var successful = false
 
@@ -88,13 +88,12 @@ class WebsiteRefreshWorker(
                 TimeUnit.SECONDS
             )
 
-        return if (completed && successful) {
+        return if (
+            completed &&
+            successful
+        ) {
             Result.success()
         } else {
-            /*
-             * Widgetten beholder sit gamle billede,
-             * hvis hjemmesiden ikke kunne renderes.
-             */
             Result.retry()
         }
     }
@@ -105,37 +104,42 @@ class WebsiteRefreshWorker(
         latch: CountDownLatch
     ): Boolean {
 
-        val context = applicationContext
+        val context =
+            applicationContext
 
-val prefs =
-    context.getSharedPreferences(
-        "settings",
-        Context.MODE_PRIVATE
-    )
+        val prefs =
+            context.getSharedPreferences(
+                "settings",
+                Context.MODE_PRIVATE
+            )
 
-val cropEnabled =
-    prefs.getBoolean(
-        "cropEnabled_$appWidgetId",
-        false
-    )
+        val cropEnabled =
+            prefs.getBoolean(
+                "cropEnabled_$appWidgetId",
+                false
+            )
 
-val cropScrollX =
-    prefs.getInt(
-        "cropScrollX_$appWidgetId",
-        0
-    )
+        val cropScrollX =
+            prefs.getInt(
+                "cropScrollX_$appWidgetId",
+                0
+            )
 
-val cropScrollY =
-    prefs.getInt(
-        "cropScrollY_$appWidgetId",
-        0
-    )
-        
+        val cropScrollY =
+            prefs.getInt(
+                "cropScrollY_$appWidgetId",
+                0
+            )
+
         val manager =
-            AppWidgetManager.getInstance(context)
+            AppWidgetManager.getInstance(
+                context
+            )
 
         val options =
-            manager.getAppWidgetOptions(appWidgetId)
+            manager.getAppWidgetOptions(
+                appWidgetId
+            )
 
         val density =
             context.resources
@@ -147,14 +151,16 @@ val cropScrollY =
                 AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
                 300
             ) * density
-        ).roundToInt().coerceAtLeast(1)
+        ).roundToInt()
+            .coerceAtLeast(1)
 
         val height = (
             options.getInt(
                 AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,
                 180
             ) * density
-        ).roundToInt().coerceAtLeast(1)
+        ).roundToInt()
+            .coerceAtLeast(1)
 
         val displayManager =
             context.getSystemService(
@@ -164,26 +170,30 @@ val cropScrollY =
         val surfaceTexture =
             SurfaceTexture(0)
 
-     val renderWidth = width
-val renderHeight = height
-
-surfaceTexture.setDefaultBufferSize(
-    renderWidth,
-    renderHeight
-)
+        surfaceTexture.setDefaultBufferSize(
+            width,
+            height
+        )
 
         val surface =
             Surface(surfaceTexture)
 
-        var virtualDisplay: VirtualDisplay? = null
-        var presentation: Presentation? = null
-        var web: WebView? = null
+        var virtualDisplay: VirtualDisplay? =
+            null
+
+        var presentation: Presentation? =
+            null
+
+        var web: WebView? =
+            null
 
         var completed = false
 
         fun cleanup() {
 
-            if (completed) return
+            if (completed) {
+                return
+            }
 
             completed = true
 
@@ -216,181 +226,10 @@ surfaceTexture.setDefaultBufferSize(
             latch.countDown()
         }
 
-        return try {
-
-            virtualDisplay =
-    displayManager.createVirtualDisplay(
-        "WebWidget-$appWidgetId",
-        renderWidth,
-        renderHeight,
-                    context.resources
-                        .displayMetrics
-                        .densityDpi,
-                    surface,
-                    DisplayManager
-                        .VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY
-                )
-
-            val display =
-                virtualDisplay?.display
-                    ?: run {
-                        cleanup()
-                        return false
-                    }
-
-            presentation =
-                Presentation(
-                    context,
-                    display
-                )
-
-            web = WebView(
-                presentation!!.context
-            )
-
-            web!!.setLayerType(
-                View.LAYER_TYPE_SOFTWARE,
-                null
-            )
-
-            web!!.settings.apply {
-                javaScriptEnabled = true
-                domStorageEnabled = true
-                loadsImagesAutomatically = true
-                useWideViewPort = true
-                loadWithOverviewMode = false
-                offscreenPreRaster = true
-            }
-
-            presentation!!.setContentView(web)
-
-            presentation!!.show()
-
-            web!!.webViewClient =
-                object : WebViewClient() {
-                    override fun shouldInterceptRequest(
-    view: WebView?,
-    request: WebResourceRequest?
-): android.webkit.WebResourceResponse? {
-
-    val adBlockEnabled =
-        context.getSharedPreferences(
-            "settings",
-            Context.MODE_PRIVATE
-        ).getBoolean("adblock", true)
-
-    if (!adBlockEnabled) {
-        return super.shouldInterceptRequest(
-            view,
-            request
-        )
-    }
-
-    val url =
-        request?.url
-            ?.host
-            ?.lowercase()
-            ?: return super.shouldInterceptRequest(
-                view,
-                request
-            )
-
-    val blocked =
-        listOf(
-            "doubleclick.net",
-            "googlesyndication.com",
-            "googleadservices.com",
-            "adservice.google.com",
-            "googletagmanager.com",
-            "google-analytics.com",
-            "scorecardresearch.com",
-            "adnxs.com",
-            "criteo.com",
-            "criteo.net"
-        ).any {
-            url == it || url.endsWith(".$it")
-        }
-
-    return if (blocked) {
-        android.webkit.WebResourceResponse(
-            "text/plain",
-            "UTF-8",
-            null
-        )
-    } else {
-        super.shouldInterceptRequest(
-            view,
-            request
-        )
-    }
-}
-
-                    override fun onPageFinished(
-                        view: WebView?,
-                        url: String?
-                    ) {
-
-                        mainHandler.postDelayed({
-
-                            if (completed) {
-                                return@postDelayed
-                            }
-
-                            try {
-
-                               if (cropEnabled) {
-
-    web!!.evaluateJavascript(
-        """
-        (function() {
-            var maxX = Math.max(
-                0,
-                document.documentElement.scrollWidth - window.innerWidth
-            );
-
-            var maxY = Math.max(
-                0,
-                document.documentElement.scrollHeight - window.innerHeight
-            );
-
-            window.scrollTo(
-                maxX * $cropXRatio,
-                maxY * $cropYRatio
-            );
-        })();
-        """.trimIndent(),
-        null
-    )
-}
-
-                                val bitmap =
-    Bitmap.createBitmap(
-        renderWidth,
-        renderHeight,
-        Bitmap.Config.ARGB_8888
-    )
-
-                                val canvas =
-                                    Canvas(bitmap)
-
-                                web!!.draw(canvas)
-
-                                val finalBitmap =
-    if (cropEnabled) {
-
-    web!!.evaluateJavascript(
-        """
-        window.scrollTo(
-            $cropScrollX,
-            $cropScrollY
-        );
-        """.trimIndent()
-    ) {
-
-        mainHandler.postDelayed({
+        fun drawWidget() {
 
             if (completed) {
-                return@postDelayed
+                return
             }
 
             try {
@@ -405,7 +244,7 @@ surfaceTexture.setDefaultBufferSize(
                 val canvas =
                     Canvas(bitmap)
 
-                web!!.draw(canvas)
+                web?.draw(canvas)
 
                 val views =
                     RemoteViews(
@@ -427,134 +266,177 @@ surfaceTexture.setDefaultBufferSize(
             } finally {
                 cleanup()
             }
-
-        }, 500)
-    }
-
-    return@postDelayed
-}
-
-val bitmap =
-    Bitmap.createBitmap(
-        width,
-        height,
-        Bitmap.Config.ARGB_8888
-override fun onPageFinished(
-    view: WebView?,
-    url: String?
-) {
-
-    mainHandler.postDelayed({
-
-        if (completed) {
-            return@postDelayed
         }
 
-        try {
+        return try {
 
-            if (cropEnabled) {
-
-                web!!.evaluateJavascript(
-                    """
-                    window.scrollTo(
-                        $cropScrollX,
-                        $cropScrollY
-                    );
-                    """.trimIndent()
-                ) {
-
-                    mainHandler.postDelayed({
-
-                        if (completed) {
-                            return@postDelayed
-                        }
-
-                        try {
-
-                            val bitmap =
-                                Bitmap.createBitmap(
-                                    width,
-                                    height,
-                                    Bitmap.Config.ARGB_8888
-                                )
-
-                            val canvas =
-                                Canvas(bitmap)
-
-                            web!!.draw(canvas)
-
-                            val views =
-                                RemoteViews(
-                                    context.packageName,
-                                    R.layout.widget_layout
-                                )
-
-                            views.setImageViewBitmap(
-                                R.id.widget_image,
-                                bitmap
-                            )
-
-                            manager.updateAppWidget(
-                                appWidgetId,
-                                views
-                            )
-
-                        } catch (_: Exception) {
-                        } finally {
-                            cleanup()
-                        }
-
-                    }, 500)
-                }
-
-                return@postDelayed
-            }
-
-            val bitmap =
-                Bitmap.createBitmap(
+            virtualDisplay =
+                displayManager.createVirtualDisplay(
+                    "WebWidget-$appWidgetId",
                     width,
                     height,
-                    Bitmap.Config.ARGB_8888
+                    context.resources
+                        .displayMetrics
+                        .densityDpi,
+                    surface,
+                    DisplayManager
+                        .VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY
                 )
 
-            val canvas =
-                Canvas(bitmap)
+            val display =
+                virtualDisplay?.display
+                    ?: run {
+                        cleanup()
+                        return false
+                    }
 
-            web!!.draw(canvas)
-
-            val views =
-                RemoteViews(
-                    context.packageName,
-                    R.layout.widget_layout
+            presentation =
+                Presentation(
+                    context,
+                    display
                 )
 
-            views.setImageViewBitmap(
-                R.id.widget_image,
-                bitmap
+            web =
+                WebView(
+                    presentation!!.context
+                )
+
+            web!!.setLayerType(
+                View.LAYER_TYPE_SOFTWARE,
+                null
             )
 
-            manager.updateAppWidget(
-                appWidgetId,
-                views
-            )
-
-        } catch (_: Exception) {
-        } finally {
-
-            if (!cropEnabled) {
-                cleanup()
+            web!!.settings.apply {
+                javaScriptEnabled = true
+                domStorageEnabled = true
+                loadsImagesAutomatically = true
+                useWideViewPort = true
+                loadWithOverviewMode = false
+                offscreenPreRaster = true
             }
-        }
 
-    }, 5000)
-}
-            web!!.loadUrl(address)
+            presentation!!.setContentView(
+                web
+            )
 
-            /*
-             * Sikkerheds-timeout.
-             */
+            presentation!!.show()
+
+            web!!.webViewClient =
+                object : WebViewClient() {
+
+                    override fun shouldInterceptRequest(
+                        view: WebView?,
+                        request: WebResourceRequest?
+                    ): android.webkit.WebResourceResponse? {
+
+                        val adBlockEnabled =
+                            context.getSharedPreferences(
+                                "settings",
+                                Context.MODE_PRIVATE
+                            ).getBoolean(
+                                "adblock",
+                                true
+                            )
+
+                        if (!adBlockEnabled) {
+                            return super.shouldInterceptRequest(
+                                view,
+                                request
+                            )
+                        }
+
+                        val host =
+                            request?.url
+                                ?.host
+                                ?.lowercase()
+                                ?: return super.shouldInterceptRequest(
+                                    view,
+                                    request
+                                )
+
+                        val blocked =
+                            listOf(
+                                "doubleclick.net",
+                                "googlesyndication.com",
+                                "googleadservices.com",
+                                "adservice.google.com",
+                                "googletagmanager.com",
+                                "google-analytics.com",
+                                "scorecardresearch.com",
+                                "adnxs.com",
+                                "criteo.com",
+                                "criteo.net"
+                            ).any {
+                                host == it ||
+                                host.endsWith(
+                                    ".$it"
+                                )
+                            }
+
+                        return if (blocked) {
+
+                            android.webkit.WebResourceResponse(
+                                "text/plain",
+                                "UTF-8",
+                                null
+                            )
+
+                        } else {
+
+                            super.shouldInterceptRequest(
+                                view,
+                                request
+                            )
+                        }
+                    }
+
+                    override fun onPageFinished(
+                        view: WebView?,
+                        url: String?
+                    ) {
+
+                        mainHandler.postDelayed({
+
+                            if (completed) {
+                                return@postDelayed
+                            }
+
+                            if (!cropEnabled) {
+
+                                drawWidget()
+                                return@postDelayed
+                            }
+
+                            web!!.evaluateJavascript(
+                                """
+                                window.scrollTo(
+                                    $cropScrollX,
+                                    $cropScrollY
+                                );
+                                """.trimIndent()
+                            ) {
+
+                                mainHandler.postDelayed({
+
+                                    drawWidget()
+
+                                }, 500)
+                            }
+
+                        }, 5000)
+                    }
+                }
+
+            web!!.loadUrl(
+                address
+            )
+
             mainHandler.postDelayed({
-                cleanup()
+
+                if (!completed) {
+                    cleanup()
+                }
+
             }, 20000)
 
             true
