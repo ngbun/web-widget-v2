@@ -82,11 +82,13 @@ class CropWebsiteActivity : Activity() {
         )
 
     val contentWidth =
-    webView.computeHorizontalScrollRange()
+    (webView.contentWidth * webView.scale)
+        .toInt()
         .coerceAtLeast(1)
 
 val contentHeight =
-    webView.computeVerticalScrollRange()
+    (webView.contentHeight * webView.scale)
+        .toInt()
         .coerceAtLeast(1)
 
 val cropXRatio =
