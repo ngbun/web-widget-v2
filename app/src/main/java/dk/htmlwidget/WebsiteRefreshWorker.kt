@@ -228,10 +228,10 @@ surfaceTexture.setDefaultBufferSize(
         return try {
 
             virtualDisplay =
-                displayManager.createVirtualDisplay(
-                    "WebWidget-$appWidgetId",
-                    width,
-                    height,
+    displayManager.createVirtualDisplay(
+        "WebWidget-$appWidgetId",
+        renderWidth,
+        renderHeight,
                     context.resources
                         .displayMetrics
                         .densityDpi,
