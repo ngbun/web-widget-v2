@@ -120,8 +120,10 @@ class WebsiteRefreshWorker(
             )
 
         /*
-         * NYE præcise værdier fra
-         * CropWebsiteActivity.
+         * Dokumentkoordinater fra område-vælgeren.
+         *
+         * Disse er gemt i WebViewens
+         * dokumentkoordinater.
          */
         val cropDocumentX =
             prefs.getInt(
@@ -135,6 +137,19 @@ class WebsiteRefreshWorker(
                 0
             ).coerceAtLeast(0)
 
+        /*
+         * Scale fra WebView'en, hvor brugeren
+         * valgte området.
+         */
+        val savedWebScale =
+            prefs.getFloat(
+                "cropWebScale_$appWidgetId",
+                1f
+            ).coerceAtLeast(0.01f)
+
+        /*
+         * Samme viewport som område-vælgeren.
+         */
         val savedViewportWidth =
             prefs.getInt(
                 "cropViewportWidth_$appWidgetId",
@@ -147,6 +162,25 @@ class WebsiteRefreshWorker(
                 0
             )
 
+        /*
+         * Størrelsen på det valgte område
+         * i dokumentkoordinater.
+         */
+        val documentSelectionWidth =
+            prefs.getInt(
+                "cropDocumentSelectionWidth_$appWidgetId",
+                0
+            )
+
+        val documentSelectionHeight =
+            prefs.getInt(
+                "cropDocumentSelectionHeight_$appWidgetId",
+                0
+            )
+
+        /*
+         * Almindelig pixelstørrelse som fallback.
+         */
         val savedSelectionWidth =
             prefs.getInt(
                 "cropSelectionWidth_$appWidgetId",
@@ -174,9 +208,6 @@ class WebsiteRefreshWorker(
                 .displayMetrics
                 .density
 
-        /*
-         * Widgettens faktiske outputstørrelse.
-         */
         val widgetWidth =
             (
                 options.getInt(
@@ -196,14 +227,8 @@ class WebsiteRefreshWorker(
                 .coerceAtLeast(1)
 
         /*
-         * KRITISK ÆNDRING:
-         *
-         * Hvis der er gemt et område, bruger worker'en
-         * præcis samme viewportbredde som WebView'en
-         * i CropWebsiteActivity.
-         *
-         * Dermed bør responsive hjemmesider få
-         * samme layout begge steder.
+         * Samme viewportstørrelse som
+         * CropWebsiteActivity.
          */
         val renderWidth =
             if (
@@ -305,84 +330,170 @@ class WebsiteRefreshWorker(
                         }
 
                 /*
-                 * Områdets størrelse.
+                 * Workerens faktiske WebView-scale.
                  *
-                 * Ved crop bruger vi præcis samme
-                 * størrelse som den røde ramme havde.
+                 * Selv med samme viewport kan vi ikke
+                 * bare antage, at den er identisk.
                  */
-                val selectionWidth =
+                val workerWebScale =
+                    currentWeb.scale
+                        .coerceAtLeast(0.01f)
+
+                /*
+                 * Dokumentkoordinaterne skal nu
+                 * oversættes til workerens
+                 * tegningskoordinater.
+                 *
+                 * Eksempel:
+                 *
+                 * Valgt dokument-Y = 2000
+                 * Worker scale = 2
+                 *
+                 * Tegnings-Y = 4000 px.
+                 */
+                val drawX =
+                    if (cropEnabled) {
+
+                        (
+                            cropDocumentX *
+                                workerWebScale
+                        ).roundToInt()
+                            .coerceAtLeast(0)
+
+                    } else {
+                        0
+                    }
+
+                val drawY =
+                    if (cropEnabled) {
+
+                        (
+                            cropDocumentY *
+                                workerWebScale
+                        ).roundToInt()
+                            .coerceAtLeast(0)
+
+                    } else {
+                        0
+                    }
+
+                /*
+                 * Områdets størrelse oversættes
+                 * på samme måde.
+                 */
+                val captureWidth =
                     if (
+                        cropEnabled &&
+                        documentSelectionWidth > 0
+                    ) {
+
+                        (
+                            documentSelectionWidth *
+                                workerWebScale
+                        ).roundToInt()
+                            .coerceAtLeast(1)
+
+                    } else if (
                         cropEnabled &&
                         savedSelectionWidth > 0
                     ) {
-                        savedSelectionWidth
-                    } else {
-                        widgetWidth
-                    }.coerceAtLeast(1)
 
-                val selectionHeight =
+                        /*
+                         * Hvis de nye dokumentmål
+                         * mangler, korrigerer vi den
+                         * gamle størrelse mellem de
+                         * to scales.
+                         */
+                        (
+                            savedSelectionWidth *
+                                (
+                                    workerWebScale /
+                                        savedWebScale
+                                )
+                        ).roundToInt()
+                            .coerceAtLeast(1)
+
+                    } else {
+
+                        widgetWidth
+                    }
+
+                val captureHeight =
                     if (
+                        cropEnabled &&
+                        documentSelectionHeight > 0
+                    ) {
+
+                        (
+                            documentSelectionHeight *
+                                workerWebScale
+                        ).roundToInt()
+                            .coerceAtLeast(1)
+
+                    } else if (
                         cropEnabled &&
                         savedSelectionHeight > 0
                     ) {
-                        savedSelectionHeight
+
+                        (
+                            savedSelectionHeight *
+                                (
+                                    workerWebScale /
+                                        savedWebScale
+                                )
+                        ).roundToInt()
+                            .coerceAtLeast(1)
+
                     } else {
+
                         widgetHeight
-                    }.coerceAtLeast(1)
+                    }
 
                 /*
-                 * Vi laver KUN et bitmap på størrelse
-                 * med det valgte område.
+                 * Kun det valgte område oprettes
+                 * som bitmap.
                  *
-                 * Ikke hele hjemmesiden.
+                 * Stadig intet kæmpe helside-bitmap.
                  */
                 val selectedBitmap =
                     Bitmap.createBitmap(
-                        selectionWidth,
-                        selectionHeight,
+                        captureWidth,
+                        captureHeight,
                         Bitmap.Config.ARGB_8888
                     )
 
-                val selectedCanvas =
+                val canvas =
                     Canvas(
                         selectedBitmap
                     )
 
-                selectedCanvas.save()
+                canvas.save()
 
                 /*
-                 * Ingen WebView-scroll.
+                 * Flyt Canvas til den præcise
+                 * dokumentposition.
                  *
-                 * Vi flytter kun Canvas'en, så
-                 * dokumentets valgte koordinat
-                 * lander ved 0,0 i bitmap'et.
+                 * WebView'en bliver IKKE scrollet.
                  */
-                if (cropEnabled) {
-
-                    selectedCanvas.translate(
-                        -cropDocumentX.toFloat(),
-                        -cropDocumentY.toFloat()
-                    )
-                }
-
-                currentWeb.draw(
-                    selectedCanvas
+                canvas.translate(
+                    -drawX.toFloat(),
+                    -drawY.toFloat()
                 )
 
-                selectedCanvas.restore()
+                currentWeb.draw(
+                    canvas
+                )
+
+                canvas.restore()
 
                 /*
-                 * Den røde ramme har samme form som
-                 * widgetten, men dens pixelstørrelse
-                 * er normalt mindre.
-                 *
-                 * Derfor skaleres det valgte udsnit
-                 * til widgettens faktiske størrelse.
+                 * Det valgte område skaleres til
+                 * widgettens faktiske størrelse.
                  */
                 val finalBitmap =
                     if (
-                        selectionWidth != widgetWidth ||
-                        selectionHeight != widgetHeight
+                        captureWidth != widgetWidth ||
+                        captureHeight != widgetHeight
                     ) {
 
                         Bitmap.createScaledBitmap(
@@ -414,19 +525,26 @@ class WebsiteRefreshWorker(
                 )
 
                 /*
-                 * Behold koordinaterne også i de
-                 * gamle felter til fejlsøgning/
-                 * kompatibilitet.
+                 * Gem de faktiske koordinater,
+                 * så vi har dem til fejlsøgning.
                  */
                 prefs.edit()
+
                     .putInt(
                         "cropBitmapX_$appWidgetId",
-                        cropDocumentX
+                        drawX
                     )
+
                     .putInt(
                         "cropBitmapY_$appWidgetId",
-                        cropDocumentY
+                        drawY
                     )
+
+                    .putFloat(
+                        "cropWorkerWebScale_$appWidgetId",
+                        workerWebScale
+                    )
+
                     .apply()
 
             } catch (_: Exception) {
@@ -475,8 +593,8 @@ class WebsiteRefreshWorker(
             )
 
             /*
-             * Samme WebView-indstillinger som
-             * CropWebsiteActivity.
+             * Samme indstillinger som
+             * område-vælgeren.
              */
             web!!.settings.apply {
 
@@ -576,9 +694,6 @@ class WebsiteRefreshWorker(
                         url: String?
                     ) {
 
-                        /*
-                         * Behold den stabile ventetid.
-                         */
                         mainHandler.postDelayed({
 
                             drawWidget()
