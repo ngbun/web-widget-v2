@@ -18,6 +18,8 @@ import android.webkit.WebViewClient
 import android.widget.RemoteViews
 import androidx.work.Worker
 import androidx.work.WorkerParameters
+import java.io.File
+import java.io.FileOutputStream
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
@@ -119,15 +121,15 @@ class WebsiteRefreshWorker(
                 false
             )
 
-        val cropScrollX =
+        val cropX =
             prefs.getInt(
-                "cropScrollX_$appWidgetId",
+                "cropBitmapX_$appWidgetId",
                 0
             )
 
-        val cropScrollY =
+        val cropY =
             prefs.getInt(
-                "cropScrollY_$appWidgetId",
+                "cropBitmapY_$appWidgetId",
                 0
             )
 
@@ -162,6 +164,12 @@ class WebsiteRefreshWorker(
         ).roundToInt()
             .coerceAtLeast(1)
 
+        val renderWidth =
+            width * 3
+
+        val renderHeight =
+            height * 3
+
         val displayManager =
             context.getSystemService(
                 Context.DISPLAY_SERVICE
@@ -171,8 +179,8 @@ class WebsiteRefreshWorker(
             SurfaceTexture(0)
 
         surfaceTexture.setDefaultBufferSize(
-            width,
-            height
+            renderWidth,
+            renderHeight
         )
 
         val surface =
@@ -234,17 +242,80 @@ class WebsiteRefreshWorker(
 
             try {
 
-                val bitmap =
+                val fullBitmap =
                     Bitmap.createBitmap(
-                        width,
-                        height,
+                        renderWidth,
+                        renderHeight,
                         Bitmap.Config.ARGB_8888
                     )
 
                 val canvas =
-                    Canvas(bitmap)
+                    Canvas(fullBitmap)
 
                 web?.draw(canvas)
+
+                /*
+                 * Gem præcis det billede,
+                 * område-vælgeren skal arbejde på.
+                 */
+                val previewFile =
+                    File(
+                        context.cacheDir,
+                        "crop_preview_$appWidgetId.png"
+                    )
+
+                FileOutputStream(
+                    previewFile
+                ).use { output ->
+
+                    fullBitmap.compress(
+                        Bitmap.CompressFormat.PNG,
+                        100,
+                        output
+                    )
+                }
+
+                val finalBitmap =
+                    if (cropEnabled) {
+
+                        val maxX =
+                            (renderWidth - width)
+                                .coerceAtLeast(0)
+
+                        val maxY =
+                            (renderHeight - height)
+                                .coerceAtLeast(0)
+
+                        val safeX =
+                            cropX.coerceIn(
+                                0,
+                                maxX
+                            )
+
+                        val safeY =
+                            cropY.coerceIn(
+                                0,
+                                maxY
+                            )
+
+                        Bitmap.createBitmap(
+                            fullBitmap,
+                            safeX,
+                            safeY,
+                            width,
+                            height
+                        )
+
+                    } else {
+
+                        Bitmap.createBitmap(
+                            fullBitmap,
+                            0,
+                            0,
+                            width,
+                            height
+                        )
+                    }
 
                 val views =
                     RemoteViews(
@@ -254,7 +325,7 @@ class WebsiteRefreshWorker(
 
                 views.setImageViewBitmap(
                     R.id.widget_image,
-                    bitmap
+                    finalBitmap
                 )
 
                 manager.updateAppWidget(
@@ -273,8 +344,8 @@ class WebsiteRefreshWorker(
             virtualDisplay =
                 displayManager.createVirtualDisplay(
                     "WebWidget-$appWidgetId",
-                    width,
-                    height,
+                    renderWidth,
+                    renderHeight,
                     context.resources
                         .displayMetrics
                         .densityDpi,
@@ -368,9 +439,9 @@ class WebsiteRefreshWorker(
                                 "criteo.net"
                             ).any {
                                 host == it ||
-                                host.endsWith(
-                                    ".$it"
-                                )
+                                    host.endsWith(
+                                        ".$it"
+                                    )
                             }
 
                         return if (blocked) {
@@ -397,31 +468,7 @@ class WebsiteRefreshWorker(
 
                         mainHandler.postDelayed({
 
-                            if (completed) {
-                                return@postDelayed
-                            }
-
-                            if (!cropEnabled) {
-
-                                drawWidget()
-                                return@postDelayed
-                            }
-
-                            web!!.evaluateJavascript(
-                                """
-                                window.scrollTo(
-                                    $cropScrollX,
-                                    $cropScrollY
-                                );
-                                """.trimIndent()
-                            ) {
-
-                                mainHandler.postDelayed({
-
-                                    drawWidget()
-
-                                }, 500)
-                            }
+                            drawWidget()
 
                         }, 5000)
                     }
