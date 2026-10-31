@@ -144,12 +144,12 @@ class CropWebsiteActivity : Activity() {
                     false
 
                 addView(
-                    cropView,
-                    ScrollView.LayoutParams(
-                        ScrollView.LayoutParams.MATCH_PARENT,
-                        ScrollView.LayoutParams.WRAP_CONTENT
-                    )
-                )
+    cropView,
+    LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.MATCH_PARENT,
+        LinearLayout.LayoutParams.WRAP_CONTENT
+    )
+)
             }
 
         root.addView(
