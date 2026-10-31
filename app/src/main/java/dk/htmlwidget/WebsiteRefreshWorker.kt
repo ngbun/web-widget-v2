@@ -86,7 +86,7 @@ class WebsiteRefreshWorker(
 
         val completed =
             latch.await(
-                25,
+                30,
                 TimeUnit.SECONDS
             )
 
@@ -164,11 +164,18 @@ class WebsiteRefreshWorker(
         ).roundToInt()
             .coerceAtLeast(1)
 
+        /*
+         * Bredde som før.
+         * Højden er nu meget større, så område-vælgeren
+         * kan komme langt længere ned på hjemmesiden.
+         */
         val renderWidth =
             width * 3
 
         val renderHeight =
-            height * 3
+            (height * 12)
+                .coerceAtMost(12000)
+                .coerceAtLeast(height * 3)
 
         val displayManager =
             context.getSystemService(
@@ -255,8 +262,7 @@ class WebsiteRefreshWorker(
                 web?.draw(canvas)
 
                 /*
-                 * Gem præcis det billede,
-                 * område-vælgeren skal arbejde på.
+                 * Gem hele previewet.
                  */
                 val previewFile =
                     File(
@@ -275,6 +281,10 @@ class WebsiteRefreshWorker(
                     )
                 }
 
+                /*
+                 * Beskær direkte i samme bitmap.
+                 * Ingen WebView-scroll.
+                 */
                 val finalBitmap =
                     if (cropEnabled) {
 
@@ -335,6 +345,7 @@ class WebsiteRefreshWorker(
 
             } catch (_: Exception) {
             } finally {
+
                 cleanup()
             }
         }
@@ -378,11 +389,14 @@ class WebsiteRefreshWorker(
             )
 
             web!!.settings.apply {
+
                 javaScriptEnabled = true
                 domStorageEnabled = true
                 loadsImagesAutomatically = true
+
                 useWideViewPort = true
                 loadWithOverviewMode = false
+
                 offscreenPreRaster = true
             }
 
@@ -410,6 +424,7 @@ class WebsiteRefreshWorker(
                             )
 
                         if (!adBlockEnabled) {
+
                             return super.shouldInterceptRequest(
                                 view,
                                 request
@@ -438,6 +453,7 @@ class WebsiteRefreshWorker(
                                 "criteo.com",
                                 "criteo.net"
                             ).any {
+
                                 host == it ||
                                     host.endsWith(
                                         ".$it"
@@ -466,11 +482,15 @@ class WebsiteRefreshWorker(
                         url: String?
                     ) {
 
+                        /*
+                         * Lidt længere ventetid fordi siden nu
+                         * renderes i et meget højere område.
+                         */
                         mainHandler.postDelayed({
 
                             drawWidget()
 
-                        }, 5000)
+                        }, 6000)
                     }
                 }
 
@@ -478,13 +498,16 @@ class WebsiteRefreshWorker(
                 address
             )
 
+            /*
+             * Sikkerheds-timeout.
+             */
             mainHandler.postDelayed({
 
                 if (!completed) {
                     cleanup()
                 }
 
-            }, 20000)
+            }, 25000)
 
             true
 
