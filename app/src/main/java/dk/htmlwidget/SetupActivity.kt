@@ -67,11 +67,24 @@ class SetupActivity : Activity() {
             url.text.toString().trim()
 
         if (website.isEmpty()) {
-            Toast.makeText(
-                this@SetupActivity,
-                "Indtast først en hjemmesideadresse",
-                Toast.LENGTH_SHORT
-            ).show()
+            val cropIntent =
+    Intent(
+        this@SetupActivity,
+        CropWebsiteActivity::class.java
+    ).apply {
+
+        putExtra(
+            AppWidgetManager.EXTRA_APPWIDGET_ID,
+            appWidgetId
+        )
+
+        putExtra(
+            "website",
+            website
+        )
+    }
+
+startActivity(cropIntent)
 
             return@setOnClickListener
         }
