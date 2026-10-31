@@ -16,6 +16,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import java.io.File
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class CropWebsiteActivity : Activity() {
@@ -104,6 +105,7 @@ class CropWebsiteActivity : Activity() {
 
         val root =
             LinearLayout(this).apply {
+
                 orientation =
                     LinearLayout.VERTICAL
             }
@@ -112,7 +114,7 @@ class CropWebsiteActivity : Activity() {
             TextView(this).apply {
 
                 text =
-                    "Scroll gennem hjemmesiden og flyt den røde ramme til det område, der skal vises i widgetten."
+                    "Scroll gennem hjemmesiden. Tryk på det område, der skal vises i widgetten."
 
                 textSize =
                     16f
@@ -133,10 +135,6 @@ class CropWebsiteActivity : Activity() {
                 widgetHeight
             )
 
-        /*
-         * ScrollView gør det muligt at bevæge sig
-         * op og ned gennem det lange preview.
-         */
         val scrollView =
             ScrollView(this).apply {
 
@@ -144,12 +142,12 @@ class CropWebsiteActivity : Activity() {
                     false
 
                 addView(
-    cropView,
-    LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT,
-        LinearLayout.LayoutParams.WRAP_CONTENT
-    )
-)
+                    cropView,
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                )
             }
 
         root.addView(
@@ -221,14 +219,11 @@ class CropWebsiteActivity : Activity() {
         private var displayScale =
             1f
 
-        private var lastTouchX =
+        private var touchDownX =
             0f
 
-        private var lastTouchY =
+        private var touchDownY =
             0f
-
-        private var draggingFrame =
-            false
 
         private val bitmapPaint =
             Paint(
@@ -265,10 +260,6 @@ class CropWebsiteActivity : Activity() {
 
         init {
 
-            /*
-             * Bevar tidligere valgt område,
-             * hvis brugeren åbner område-vælgeren igen.
-             */
             val prefs =
                 getSharedPreferences(
                     "settings",
@@ -287,38 +278,8 @@ class CropWebsiteActivity : Activity() {
                     0
                 )
 
-            /*
-             * Vi bestemmer højden ud fra billedets
-             * bredde i stedet for skærmens højde.
-             *
-             * Derfor bliver hele det lange preview
-             * liggende lodret i ScrollView.
-             */
-            post {
-
-                val availableWidth =
-                    width.coerceAtLeast(1)
-
-                displayScale =
-                    availableWidth.toFloat() /
-                        bitmap.width.toFloat()
-
-                val requiredHeight =
-                    (
-                        bitmap.height *
-                            displayScale
-                        ).roundToInt()
-                        .coerceAtLeast(1)
-
-                layoutParams =
-                    layoutParams.apply {
-                        height =
-                            requiredHeight
-                    }
-
-                requestLayout()
-                invalidate()
-            }
+            isClickable =
+                true
         }
 
         override fun onMeasure(
@@ -351,6 +312,7 @@ class CropWebsiteActivity : Activity() {
         override fun onDraw(
             canvas: Canvas
         ) {
+
             super.onDraw(canvas)
 
             if (
@@ -425,9 +387,6 @@ class CropWebsiteActivity : Activity() {
                     cropHeight *
                         displayScale
 
-            /*
-             * Mørk området uden for widgetrammen.
-             */
             canvas.drawRect(
                 0f,
                 0f,
@@ -460,9 +419,6 @@ class CropWebsiteActivity : Activity() {
                 shadePaint
             )
 
-            /*
-             * Selve den røde widgetramme.
-             */
             canvas.drawRect(
                 left,
                 top,
@@ -484,213 +440,121 @@ class CropWebsiteActivity : Activity() {
 
                 MotionEvent.ACTION_DOWN -> {
 
-                    val frameLeft =
-                        cropX *
-                            displayScale
-
-                    val frameTop =
-                        cropY *
-                            displayScale
-
-                    val frameRight =
-                        frameLeft +
-                            cropWidth *
-                                displayScale
-
-                    val frameBottom =
-                        frameTop +
-                            cropHeight *
-                                displayScale
-
-                    /*
-                     * Kun hvis fingeren starter på den røde ramme,
-                     * flytter vi rammen.
-                     *
-                     * Starter fingeren udenfor, får ScrollView
-                     * lov til at scrolle hjemmesiden.
-                     */
-                    draggingFrame =
-                        event.x >= frameLeft &&
-                        event.x <= frameRight &&
-                        event.y >= frameTop &&
-                        event.y <= frameBottom
-
-                    if (!draggingFrame) {
-                        return false
-                    }
-
-                    parent.requestDisallowInterceptTouchEvent(
-                        true
-                    )
-
-                    lastTouchX =
+                    touchDownX =
                         event.x
 
-                    lastTouchY =
+                    touchDownY =
                         event.y
+
+                    /*
+                     * Vi tager imod starten af trykket,
+                     * men forhindrer IKKE ScrollView
+                     * i at overtage ved en swipe-bevægelse.
+                     */
+                    parent.requestDisallowInterceptTouchEvent(
+                        false
+                    )
 
                     return true
                 }
 
                 MotionEvent.ACTION_MOVE -> {
 
-                    if (!draggingFrame) {
-                        return false
+                    /*
+                     * ScrollView må overtage bevægelsen.
+                     */
+                    parent.requestDisallowInterceptTouchEvent(
+                        false
+                    )
+
+                    return true
+                }
+
+                MotionEvent.ACTION_UP -> {
+
+                    val movedX =
+                        abs(
+                            event.x -
+                                touchDownX
+                        )
+
+                    val movedY =
+                        abs(
+                            event.y -
+                                touchDownY
+                        )
+
+                    /*
+                     * Kun et kort tryk flytter rammen.
+                     * Swipe bruges til scrolling.
+                     */
+                    if (
+                        movedX < 30f &&
+                        movedY < 30f
+                    ) {
+
+                        val bitmapX =
+                            (
+                                event.x /
+                                    displayScale
+                                ).roundToInt()
+
+                        val bitmapY =
+                            (
+                                event.y /
+                                    displayScale
+                                ).roundToInt()
+
+                        val maxX =
+                            (
+                                bitmap.width -
+                                    cropWidth
+                                ).coerceAtLeast(0)
+
+                        val maxY =
+                            (
+                                bitmap.height -
+                                    cropHeight
+                                ).coerceAtLeast(0)
+
+                        cropX =
+                            (
+                                bitmapX -
+                                    cropWidth / 2
+                                ).coerceIn(
+                                    0,
+                                    maxX
+                                )
+
+                        cropY =
+                            (
+                                bitmapY -
+                                    cropHeight / 2
+                                ).coerceIn(
+                                    0,
+                                    maxY
+                                )
+
+                        invalidate()
+
+                        performClick()
                     }
 
-                    val deltaX =
-                        (
-                            (event.x - lastTouchX) /
-                                displayScale
-                            ).roundToInt()
+                    return true
+                }
 
-                    val deltaY =
-                        (
-                            (event.y - lastTouchY) /
-                                displayScale
-                            ).roundToInt()
+                MotionEvent.ACTION_CANCEL -> {
 
-                    val maxX =
-                        (
-                            bitmap.width -
-                                cropWidth
-                            ).coerceAtLeast(0)
+                    parent.requestDisallowInterceptTouchEvent(
+                        false
+                    )
 
-                    val maxY =
-                        (
-                            bitmap.height -
-                                cropHeight
-                            ).coerceAtLeast(0)
-override fun onTouchEvent(
-    event: MotionEvent
-): Boolean {
-
-    if (displayScale <= 0f) {
-        return false
-    }
-
-    when (event.actionMasked) {
-
-        MotionEvent.ACTION_DOWN -> {
-
-            lastTouchX =
-                event.x
-
-            lastTouchY =
-                event.y
-
-            /*
-             * ScrollView må stadig overtage,
-             * hvis fingeren begynder at bevæge sig.
-             */
-            parent.requestDisallowInterceptTouchEvent(
-                false
-            )
-
-            return true
-        }
-
-        MotionEvent.ACTION_MOVE -> {
-
-            /*
-             * Vi flytter IKKE rammen her.
-             * ScrollView får lov til at håndtere
-             * den lodrette bevægelse.
-             */
-            parent.requestDisallowInterceptTouchEvent(
-                false
-            )
-
-            return false
-        }
-
-        MotionEvent.ACTION_UP -> {
-
-            val movedX =
-                kotlin.math.abs(
-                    event.x - lastTouchX
-                )
-
-            val movedY =
-                kotlin.math.abs(
-                    event.y - lastTouchY
-                )
-
-            /*
-             * Kun et almindeligt tryk flytter rammen.
-             * En fingerbevægelse bruges til scrolling.
-             */
-            if (
-                movedX < 30f &&
-                movedY < 30f
-            ) {
-
-                val bitmapX =
-                    (
-                        event.x /
-                            displayScale
-                        ).roundToInt()
-
-                val bitmapY =
-                    (
-                        event.y /
-                            displayScale
-                        ).roundToInt()
-
-                val maxX =
-                    (
-                        bitmap.width -
-                            cropWidth
-                        ).coerceAtLeast(0)
-
-                val maxY =
-                    (
-                        bitmap.height -
-                            cropHeight
-                        ).coerceAtLeast(0)
-
-                /*
-                 * Placér midten af den røde ramme
-                 * dér hvor brugeren trykker.
-                 */
-                cropX =
-                    (
-                        bitmapX -
-                            cropWidth / 2
-                        ).coerceIn(
-                            0,
-                            maxX
-                        )
-
-                cropY =
-                    (
-                        bitmapY -
-                            cropHeight / 2
-                        ).coerceIn(
-                            0,
-                            maxY
-                        )
-
-                invalidate()
-
-                performClick()
+                    return true
+                }
             }
 
             return true
         }
-
-        MotionEvent.ACTION_CANCEL -> {
-
-            parent.requestDisallowInterceptTouchEvent(
-                false
-            )
-
-            return false
-        }
-    }
-
-    return false
-}
 
         override fun performClick(): Boolean {
             super.performClick()
