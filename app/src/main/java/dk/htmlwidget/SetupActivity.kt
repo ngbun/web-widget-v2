@@ -80,11 +80,68 @@ class SetupActivity : Activity() {
             isChecked = prefs.getBoolean("adblock", true)
         }
 
-        layout.addView(adBlock)
+        val refreshValues = intArrayOf(
+    15, 30, 45, 60,
+    120, 180, 240, 300, 360, 420,
+    480, 540, 600, 660, 720
+)
 
-        layout.addView(TextView(this).apply {
-            text = "Widgetten opdateres automatisk cirka hvert 15. minut."
-        })
+val savedRefreshMinutes =
+    prefs.getInt("refreshMinutes_$appWidgetId", 15)
+
+val refreshLabel = TextView(this).apply {
+    textSize = 16f
+}
+
+val refreshSlider = SeekBar(this).apply {
+    max = refreshValues.size - 1
+
+    progress = refreshValues.indexOf(
+        savedRefreshMinutes
+    ).coerceAtLeast(0)
+}
+
+fun updateRefreshLabel() {
+    val minutes = refreshValues[refreshSlider.progress]
+
+    refreshLabel.text =
+        if (minutes < 60) {
+            "Opdateringsfrekvens: $minutes minutter"
+        } else {
+            val hours = minutes / 60
+            if (hours == 1) {
+                "Opdateringsfrekvens: 1 time"
+            } else {
+                "Opdateringsfrekvens: $hours timer"
+            }
+        }
+}
+
+refreshSlider.setOnSeekBarChangeListener(
+    object : SeekBar.OnSeekBarChangeListener {
+
+        override fun onProgressChanged(
+            seekBar: SeekBar?,
+            progress: Int,
+            fromUser: Boolean
+        ) {
+            updateRefreshLabel()
+        }
+
+        override fun onStartTrackingTouch(
+            seekBar: SeekBar?
+        ) {}
+
+        override fun onStopTrackingTouch(
+            seekBar: SeekBar?
+        ) {}
+    }
+)
+
+updateRefreshLabel()
+
+layout.addView(refreshLabel)
+layout.addView(refreshSlider)
 
         layout.addView(Button(this).apply {
             text = "Gem og opdater widget"
