@@ -1,4 +1,3 @@
-
 package dk.htmlwidget
 
 import android.app.Activity
@@ -9,6 +8,7 @@ import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import kotlin.math.roundToInt
 
 class CropWebsiteActivity : Activity() {
 
@@ -26,9 +26,43 @@ class CropWebsiteActivity : Activity() {
                 AppWidgetManager.INVALID_APPWIDGET_ID
             )
 
+        if (
+            appWidgetId ==
+            AppWidgetManager.INVALID_APPWIDGET_ID
+        ) {
+            finish()
+            return
+        }
+
         val website =
             intent.getStringExtra("website")
-                ?: return finish()
+                ?: run {
+                    finish()
+                    return
+                }
+
+        val manager =
+            AppWidgetManager.getInstance(this)
+
+        val options =
+            manager.getAppWidgetOptions(appWidgetId)
+
+        val density =
+            resources.displayMetrics.density
+
+        val widgetWidth = (
+            options.getInt(
+                AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
+                300
+            ) * density
+        ).roundToInt().coerceAtLeast(1)
+
+        val widgetHeight = (
+            options.getInt(
+                AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,
+                180
+            ) * density
+        ).roundToInt().coerceAtLeast(1)
 
         val layout =
             LinearLayout(this).apply {
@@ -38,7 +72,7 @@ class CropWebsiteActivity : Activity() {
         layout.addView(
             TextView(this).apply {
                 text =
-                    "Flyt og zoom hjemmesiden, så det område du vil vise er på skærmen."
+                    "Flyt hjemmesiden til præcis det område, der skal vises i widgetten."
                 textSize = 16f
                 setPadding(30, 20, 30, 20)
             }
@@ -50,7 +84,7 @@ class CropWebsiteActivity : Activity() {
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 settings.loadsImagesAutomatically = true
-                settings.builtInZoomControls = true
+                settings.builtInZoomControls = false
                 settings.displayZoomControls = false
                 settings.useWideViewPort = true
                 settings.loadWithOverviewMode = false
@@ -65,104 +99,80 @@ class CropWebsiteActivity : Activity() {
         layout.addView(
             webView,
             LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1f
+                widgetWidth,
+                widgetHeight
             )
         )
 
         layout.addView(
             Button(this).apply {
+
                 text = "Gem dette område"
 
                 setOnClickListener {
 
-    val prefs =
-        getSharedPreferences(
-            "settings",
-            MODE_PRIVATE
-        )
+                    val prefs =
+                        getSharedPreferences(
+                            "settings",
+                            MODE_PRIVATE
+                        )
 
-    webView.evaluateJavascript(
-        """
-        (function() {
-            return JSON.stringify({
-                x: window.scrollX,
-                y: window.scrollY,
-                width: document.documentElement.scrollWidth,
-                height: document.documentElement.scrollHeight
-            });
-        })();
-        """.trimIndent()
-    ) { result ->
+                    webView.evaluateJavascript(
+                        """
+                        (function() {
+                            return JSON.stringify({
+                                x: window.scrollX,
+                                y: window.scrollY
+                            });
+                        })();
+                        """.trimIndent()
+                    ) { result ->
 
-        try {
+                        try {
 
-            val clean =
-                result
-                    .removePrefix("\"")
-                    .removeSuffix("\"")
-                    .replace("\\\"", "\"")
+                            val clean =
+                                result
+                                    .removePrefix("\"")
+                                    .removeSuffix("\"")
+                                    .replace("\\\"", "\"")
 
-            val json =
-                org.json.JSONObject(clean)
+                            val json =
+                                org.json.JSONObject(clean)
 
-            val pageWidth =
-                json.getDouble("width")
-                    .coerceAtLeast(1.0)
+                            val scrollX =
+                                json.getDouble("x")
+                                    .roundToInt()
 
-            val pageHeight =
-                json.getDouble("height")
-                    .coerceAtLeast(1.0)
+                            val scrollY =
+                                json.getDouble("y")
+                                    .roundToInt()
 
-            val maxScrollX =
-    (pageWidth - webView.width)
-        .coerceAtLeast(1.0)
+                            prefs.edit()
+                                .putInt(
+                                    "cropScrollX_$appWidgetId",
+                                    scrollX
+                                )
+                                .putInt(
+                                    "cropScrollY_$appWidgetId",
+                                    scrollY
+                                )
+                                .putBoolean(
+                                    "cropEnabled_$appWidgetId",
+                                    true
+                                )
+                                .apply()
 
-val maxScrollY =
-    (pageHeight - webView.height)
-        .coerceAtLeast(1.0)
+                            finish()
 
-val cropXRatio =
-    (json.getDouble("x") / maxScrollX)
-        .toFloat()
-        .coerceIn(0f, 1f)
+                        } catch (e: Exception) {
 
-val cropYRatio =
-    (json.getDouble("y") / maxScrollY)
-        .toFloat()
-        .coerceIn(0f, 1f)
-
-            prefs.edit()
-                .putFloat(
-                    "cropXRatio_$appWidgetId",
-                    cropXRatio
-                )
-                .putFloat(
-                    "cropYRatio_$appWidgetId",
-                    cropYRatio
-                )
-                .putFloat(
-                    "cropScale_$appWidgetId",
-                    webView.scale
-                )
-                .putBoolean(
-                    "cropEnabled_$appWidgetId",
-                    true
-                )
-                .apply()
-
-            finish()
-
-        } catch (e: Exception) {
-
-            android.widget.Toast.makeText(
-                this@CropWebsiteActivity,
-                "Kunne ikke gemme området",
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
-        }
-    }
+                            android.widget.Toast.makeText(
+                                this@CropWebsiteActivity,
+                                "Kunne ikke gemme området",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
                 }
             }
         )
