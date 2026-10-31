@@ -2,27 +2,27 @@ package dk.htmlwidget
 
 import android.app.Activity
 import android.appwidget.AppWidgetManager
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.RectF
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.view.MotionEvent
+import android.view.Gravity
 import android.view.View
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import java.io.File
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class CropWebsiteActivity : Activity() {
 
     private var appWidgetId =
         AppWidgetManager.INVALID_APPWIDGET_ID
+
+    private lateinit var webView: WebView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,34 +41,29 @@ class CropWebsiteActivity : Activity() {
             return
         }
 
-        val previewFile =
-            File(
-                cacheDir,
-                "crop_preview_$appWidgetId.png"
+        val prefs =
+            getSharedPreferences(
+                "settings",
+                MODE_PRIVATE
             )
 
-        if (!previewFile.exists()) {
+        val address =
+            prefs.getString(
+                "url_$appWidgetId",
+                null
+            )?.trim()
+
+        if (
+            address.isNullOrBlank() ||
+            (
+                !address.startsWith("https://") &&
+                !address.startsWith("http://")
+            )
+        ) {
 
             Toast.makeText(
                 this,
-                "Opdater widgetten først, og prøv derefter igen.",
-                Toast.LENGTH_LONG
-            ).show()
-
-            finish()
-            return
-        }
-
-        val previewBitmap =
-            BitmapFactory.decodeFile(
-                previewFile.absolutePath
-            )
-
-        if (previewBitmap == null) {
-
-            Toast.makeText(
-                this,
-                "Kunne ikke åbne forhåndsvisningen.",
+                "Der er ikke gemt en gyldig hjemmeside.",
                 Toast.LENGTH_LONG
             ).show()
 
@@ -87,37 +82,47 @@ class CropWebsiteActivity : Activity() {
         val density =
             resources.displayMetrics.density
 
-        val widgetWidth = (
-            options.getInt(
-                AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
-                300
-            ) * density
-        ).roundToInt()
-            .coerceAtLeast(1)
+        val widgetWidth =
+            (
+                options.getInt(
+                    AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
+                    300
+                ) * density
+                ).roundToInt()
+                .coerceAtLeast(1)
 
-        val widgetHeight = (
-            options.getInt(
-                AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,
-                180
-            ) * density
-        ).roundToInt()
-            .coerceAtLeast(1)
+        val widgetHeight =
+            (
+                options.getInt(
+                    AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,
+                    180
+                ) * density
+                ).roundToInt()
+                .coerceAtLeast(1)
 
         val root =
             LinearLayout(this).apply {
 
                 orientation =
                     LinearLayout.VERTICAL
+
+                setBackgroundColor(
+                    Color.WHITE
+                )
             }
 
-        root.addView(
+        val instruction =
             TextView(this).apply {
 
                 text =
-                    "Scroll gennem hjemmesiden. Tryk på det område, der skal vises i widgetten."
+                    "Scroll gennem hele hjemmesiden. Placér det ønskede område i den røde ramme og tryk Gem."
 
                 textSize =
                     16f
+
+                setTextColor(
+                    Color.BLACK
+                )
 
                 setPadding(
                     30,
@@ -126,32 +131,20 @@ class CropWebsiteActivity : Activity() {
                     20
                 )
             }
-        )
-
-        val cropView =
-            CropPreviewView(
-                previewBitmap,
-                widgetWidth,
-                widgetHeight
-            )
-
-        val scrollView =
-            ScrollView(this).apply {
-
-                isFillViewport =
-                    false
-
-                addView(
-                    cropView,
-                    LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    )
-                )
-            }
 
         root.addView(
-            scrollView,
+            instruction
+        )
+
+        /*
+         * Dette område indeholder både WebView
+         * og den røde ramme ovenpå.
+         */
+        val websiteContainer =
+            FrameLayout(this)
+
+        root.addView(
+            websiteContainer,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
@@ -159,7 +152,129 @@ class CropWebsiteActivity : Activity() {
             )
         )
 
-        root.addView(
+        webView =
+            WebView(this).apply {
+
+                setBackgroundColor(
+                    Color.WHITE
+                )
+
+                settings.apply {
+
+                    javaScriptEnabled =
+                        true
+
+                    domStorageEnabled =
+                        true
+
+                    loadsImagesAutomatically =
+                        true
+
+                    useWideViewPort =
+                        true
+
+                    loadWithOverviewMode =
+                        false
+
+                    builtInZoomControls =
+                        false
+
+                    displayZoomControls =
+                        false
+                }
+
+                isVerticalScrollBarEnabled =
+                    true
+
+                isHorizontalScrollBarEnabled =
+                    true
+
+                /*
+                 * WebView'en må selv håndtere scrolling.
+                 */
+                overScrollMode =
+                    View.OVER_SCROLL_IF_CONTENT_SCROLLS
+            }
+
+        websiteContainer.addView(
+            webView,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        )
+
+        /*
+         * Beregn størrelsen på den røde ramme.
+         *
+         * Worker'en renderer hjemmesiden i 3 ×
+         * widgetbredden. Derfor svarer widgetudsnittet
+         * til cirka 1/3 af den viste bredde.
+         */
+        val screenWidth =
+            resources.displayMetrics.widthPixels
+
+        val frameWidth =
+            (screenWidth / 3f)
+                .roundToInt()
+                .coerceAtLeast(1)
+
+        val widgetRatio =
+            widgetHeight.toFloat() /
+                widgetWidth.toFloat()
+
+        val frameHeight =
+            (
+                frameWidth *
+                    widgetRatio
+                ).roundToInt()
+                .coerceAtLeast(1)
+
+        /*
+         * Transparent overlay.
+         *
+         * Den røde ramme modtager IKKE touch,
+         * så fingeren går direkte igennem til WebView.
+         */
+        val frameOverlay =
+            View(this).apply {
+
+                isClickable =
+                    false
+
+                isFocusable =
+                    false
+
+                background =
+                    GradientDrawable().apply {
+
+                        setColor(
+                            Color.TRANSPARENT
+                        )
+
+                        setStroke(
+                            6,
+                            Color.RED
+                        )
+                    }
+            }
+
+        val frameParams =
+            FrameLayout.LayoutParams(
+                frameWidth,
+                frameHeight
+            ).apply {
+
+                gravity =
+                    Gravity.CENTER
+            }
+
+        websiteContainer.addView(
+            frameOverlay,
+            frameParams
+        )
+
+        val saveButton =
             Button(this).apply {
 
                 text =
@@ -167,24 +282,96 @@ class CropWebsiteActivity : Activity() {
 
                 setOnClickListener {
 
-                    val prefs =
-                        getSharedPreferences(
-                            "settings",
-                            MODE_PRIVATE
-                        )
+                    /*
+                     * WebViewens aktuelle scrollposition.
+                     */
+                    val scrollX =
+                        webView.scrollX
+
+                    val scrollY =
+                        webView.scrollY
+
+                    /*
+                     * Find rammens placering inde
+                     * i den synlige WebView.
+                     */
+                    val frameLeft =
+                        (
+                            (
+                                websiteContainer.width -
+                                    frameOverlay.width
+                                ) / 2f
+                            )
+
+                    val frameTop =
+                        (
+                            (
+                                websiteContainer.height -
+                                    frameOverlay.height
+                                ) / 2f
+                            )
+
+                    /*
+                     * WebView-koordinater for øverste
+                     * venstre hjørne af rammen.
+                     */
+                    val selectedScreenX =
+                        scrollX +
+                            frameLeft
+
+                    val selectedScreenY =
+                        scrollY +
+                            frameTop
+
+                    /*
+                     * Workerens bitmap er 3 × widgetbredden.
+                     *
+                     * Konverter derfor koordinaterne fra
+                     * den synlige WebView til workerens
+                     * bitmap-koordinater.
+                     */
+                    val scaleToWorker =
+                        (
+                            widgetWidth * 3f
+                            ) /
+                            websiteContainer.width
+                                .coerceAtLeast(1)
+                                .toFloat()
+
+                    val cropBitmapX =
+                        (
+                            selectedScreenX *
+                                scaleToWorker
+                            ).roundToInt()
+                            .coerceAtLeast(0)
+
+                    val cropBitmapY =
+                        (
+                            selectedScreenY *
+                                scaleToWorker
+                            ).roundToInt()
+                            .coerceAtLeast(0)
 
                     prefs.edit()
                         .putInt(
                             "cropBitmapX_$appWidgetId",
-                            cropView.cropX
+                            cropBitmapX
                         )
                         .putInt(
                             "cropBitmapY_$appWidgetId",
-                            cropView.cropY
+                            cropBitmapY
                         )
                         .putBoolean(
                             "cropEnabled_$appWidgetId",
                             true
+                        )
+                        .putInt(
+                            "websiteScrollX_$appWidgetId",
+                            scrollX
+                        )
+                        .putInt(
+                            "websiteScrollY_$appWidgetId",
+                            scrollY
                         )
                         .apply()
 
@@ -197,368 +384,137 @@ class CropWebsiteActivity : Activity() {
                     finish()
                 }
             }
+
+        root.addView(
+            saveButton
         )
 
-        setContentView(root)
-    }
+        setContentView(
+            root
+        )
 
-    private inner class CropPreviewView(
-        private val bitmap: Bitmap,
-        private val cropWidth: Int,
-        private val cropHeight: Int
-    ) : View(this) {
+        webView.webViewClient =
+            object : WebViewClient() {
 
-        var cropX =
-            0
-            private set
+                override fun shouldInterceptRequest(
+                    view: WebView?,
+                    request: WebResourceRequest?
+                ): android.webkit.WebResourceResponse? {
 
-        var cropY =
-            0
-            private set
-
-        private var displayScale =
-            1f
-
-        private var touchDownX =
-            0f
-
-        private var touchDownY =
-            0f
-
-        private val bitmapPaint =
-            Paint(
-                Paint.ANTI_ALIAS_FLAG or
-                    Paint.FILTER_BITMAP_FLAG
-            )
-
-        private val framePaint =
-            Paint(
-                Paint.ANTI_ALIAS_FLAG
-            ).apply {
-
-                style =
-                    Paint.Style.STROKE
-
-                strokeWidth =
-                    6f
-
-                color =
-                    android.graphics.Color.RED
-            }
-
-        private val shadePaint =
-            Paint().apply {
-
-                color =
-                    android.graphics.Color.argb(
-                        100,
-                        0,
-                        0,
-                        0
-                    )
-            }
-
-        init {
-
-            val prefs =
-                getSharedPreferences(
-                    "settings",
-                    MODE_PRIVATE
-                )
-
-            cropX =
-                prefs.getInt(
-                    "cropBitmapX_$appWidgetId",
-                    0
-                )
-
-            cropY =
-                prefs.getInt(
-                    "cropBitmapY_$appWidgetId",
-                    0
-                )
-
-            isClickable =
-                true
-        }
-
-        override fun onMeasure(
-            widthMeasureSpec: Int,
-            heightMeasureSpec: Int
-        ) {
-
-            val measuredWidth =
-                MeasureSpec.getSize(
-                    widthMeasureSpec
-                ).coerceAtLeast(1)
-
-            displayScale =
-                measuredWidth.toFloat() /
-                    bitmap.width.toFloat()
-
-            val measuredHeight =
-                (
-                    bitmap.height *
-                        displayScale
-                    ).roundToInt()
-                    .coerceAtLeast(1)
-
-            setMeasuredDimension(
-                measuredWidth,
-                measuredHeight
-            )
-        }
-
-        override fun onDraw(
-            canvas: Canvas
-        ) {
-
-            super.onDraw(canvas)
-
-            if (
-                width <= 0 ||
-                height <= 0
-            ) {
-                return
-            }
-
-            displayScale =
-                width.toFloat() /
-                    bitmap.width.toFloat()
-
-            val shownHeight =
-                bitmap.height *
-                    displayScale
-
-            val destination =
-                RectF(
-                    0f,
-                    0f,
-                    width.toFloat(),
-                    shownHeight
-                )
-
-            canvas.drawBitmap(
-                bitmap,
-                null,
-                destination,
-                bitmapPaint
-            )
-
-            val maxX =
-                (
-                    bitmap.width -
-                        cropWidth
-                    ).coerceAtLeast(0)
-
-            val maxY =
-                (
-                    bitmap.height -
-                        cropHeight
-                    ).coerceAtLeast(0)
-
-            cropX =
-                cropX.coerceIn(
-                    0,
-                    maxX
-                )
-
-            cropY =
-                cropY.coerceIn(
-                    0,
-                    maxY
-                )
-
-            val left =
-                cropX *
-                    displayScale
-
-            val top =
-                cropY *
-                    displayScale
-
-            val right =
-                left +
-                    cropWidth *
-                        displayScale
-
-            val bottom =
-                top +
-                    cropHeight *
-                        displayScale
-
-            canvas.drawRect(
-                0f,
-                0f,
-                width.toFloat(),
-                top,
-                shadePaint
-            )
-
-            canvas.drawRect(
-                0f,
-                bottom,
-                width.toFloat(),
-                shownHeight,
-                shadePaint
-            )
-
-            canvas.drawRect(
-                0f,
-                top,
-                left,
-                bottom,
-                shadePaint
-            )
-
-            canvas.drawRect(
-                right,
-                top,
-                width.toFloat(),
-                bottom,
-                shadePaint
-            )
-
-            canvas.drawRect(
-                left,
-                top,
-                right,
-                bottom,
-                framePaint
-            )
-        }
-
-        override fun onTouchEvent(
-            event: MotionEvent
-        ): Boolean {
-
-            if (displayScale <= 0f) {
-                return false
-            }
-
-            when (event.actionMasked) {
-
-                MotionEvent.ACTION_DOWN -> {
-
-                    touchDownX =
-                        event.x
-
-                    touchDownY =
-                        event.y
-
-                    /*
-                     * Vi tager imod starten af trykket,
-                     * men forhindrer IKKE ScrollView
-                     * i at overtage ved en swipe-bevægelse.
-                     */
-                    parent.requestDisallowInterceptTouchEvent(
-                        false
-                    )
-
-                    return true
-                }
-
-                MotionEvent.ACTION_MOVE -> {
-
-                    /*
-                     * ScrollView må overtage bevægelsen.
-                     */
-                    parent.requestDisallowInterceptTouchEvent(
-                        false
-                    )
-
-                    return true
-                }
-
-                MotionEvent.ACTION_UP -> {
-
-                    val movedX =
-                        abs(
-                            event.x -
-                                touchDownX
+                    val adBlockEnabled =
+                        prefs.getBoolean(
+                            "adblock",
+                            true
                         )
 
-                    val movedY =
-                        abs(
-                            event.y -
-                                touchDownY
+                    if (!adBlockEnabled) {
+
+                        return super.shouldInterceptRequest(
+                            view,
+                            request
                         )
-
-                    /*
-                     * Kun et kort tryk flytter rammen.
-                     * Swipe bruges til scrolling.
-                     */
-                    if (
-                        movedX < 30f &&
-                        movedY < 30f
-                    ) {
-
-                        val bitmapX =
-                            (
-                                event.x /
-                                    displayScale
-                                ).roundToInt()
-
-                        val bitmapY =
-                            (
-                                event.y /
-                                    displayScale
-                                ).roundToInt()
-
-                        val maxX =
-                            (
-                                bitmap.width -
-                                    cropWidth
-                                ).coerceAtLeast(0)
-
-                        val maxY =
-                            (
-                                bitmap.height -
-                                    cropHeight
-                                ).coerceAtLeast(0)
-
-                        cropX =
-                            (
-                                bitmapX -
-                                    cropWidth / 2
-                                ).coerceIn(
-                                    0,
-                                    maxX
-                                )
-
-                        cropY =
-                            (
-                                bitmapY -
-                                    cropHeight / 2
-                                ).coerceIn(
-                                    0,
-                                    maxY
-                                )
-
-                        invalidate()
-
-                        performClick()
                     }
 
-                    return true
+                    val host =
+                        request?.url
+                            ?.host
+                            ?.lowercase()
+                            ?: return super.shouldInterceptRequest(
+                                view,
+                                request
+                            )
+
+                    val blocked =
+                        listOf(
+                            "doubleclick.net",
+                            "googlesyndication.com",
+                            "googleadservices.com",
+                            "adservice.google.com",
+                            "googletagmanager.com",
+                            "google-analytics.com",
+                            "scorecardresearch.com",
+                            "adnxs.com",
+                            "criteo.com",
+                            "criteo.net"
+                        ).any {
+
+                            host == it ||
+                                host.endsWith(
+                                    ".$it"
+                                )
+                        }
+
+                    return if (blocked) {
+
+                        android.webkit.WebResourceResponse(
+                            "text/plain",
+                            "UTF-8",
+                            null
+                        )
+
+                    } else {
+
+                        super.shouldInterceptRequest(
+                            view,
+                            request
+                        )
+                    }
                 }
 
-                MotionEvent.ACTION_CANCEL -> {
+                override fun onPageFinished(
+                    view: WebView?,
+                    url: String?
+                ) {
 
-                    parent.requestDisallowInterceptTouchEvent(
-                        false
-                    )
+                    /*
+                     * Hvis brugeren tidligere har valgt
+                     * et område, gå tilbage til omtrent
+                     * samme sted på hjemmesiden.
+                     */
+                    val oldScrollX =
+                        prefs.getInt(
+                            "websiteScrollX_$appWidgetId",
+                            0
+                        )
 
-                    return true
+                    val oldScrollY =
+                        prefs.getInt(
+                            "websiteScrollY_$appWidgetId",
+                            0
+                        )
+
+                    if (
+                        oldScrollX > 0 ||
+                        oldScrollY > 0
+                    ) {
+
+                        webView.postDelayed({
+
+                            webView.scrollTo(
+                                oldScrollX,
+                                oldScrollY
+                            )
+
+                        }, 1000)
+                    }
                 }
             }
 
-            return true
+        webView.loadUrl(
+            address
+        )
+    }
+
+    override fun onDestroy() {
+
+        try {
+
+            webView.stopLoading()
+            webView.destroy()
+
+        } catch (_: Exception) {
         }
 
-        override fun performClick(): Boolean {
-            super.performClick()
-            return true
-        }
+        super.onDestroy()
     }
 }
