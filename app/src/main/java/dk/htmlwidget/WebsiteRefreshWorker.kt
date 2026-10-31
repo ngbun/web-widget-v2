@@ -119,16 +119,16 @@ val cropEnabled =
         false
     )
 
-val cropScrollX =
-    prefs.getInt(
-        "cropScrollX_$appWidgetId",
-        0
+val cropXRatio =
+    prefs.getFloat(
+        "cropXRatio_$appWidgetId",
+        0f
     )
 
-val cropScrollY =
-    prefs.getInt(
-        "cropScrollY_$appWidgetId",
-        0
+val cropYRatio =
+    prefs.getFloat(
+        "cropYRatio_$appWidgetId",
+        0f
     )
 
 val cropScale =
