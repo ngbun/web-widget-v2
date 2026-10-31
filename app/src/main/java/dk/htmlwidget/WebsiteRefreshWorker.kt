@@ -342,11 +342,30 @@ val cropScale =
                             try {
 
                                 if (cropEnabled) {
+
+    val currentScale =
+        web!!.scale
+
+    if (currentScale > 0f) {
+
+        val zoomPercent =
+            (
+                cropScale /
+                currentScale *
+                100f
+            ).roundToInt()
+                .coerceIn(25, 500)
+
+        web!!.setInitialScale(
+            zoomPercent
+        )
+    }
+
     web!!.scrollTo(
         cropScrollX,
         cropScrollY
     )
-                                }
+}
 
                                 val bitmap =
                                     Bitmap.createBitmap(
