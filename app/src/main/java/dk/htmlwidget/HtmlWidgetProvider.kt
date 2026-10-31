@@ -10,9 +10,7 @@ import android.widget.RemoteViews
 
 class HtmlWidgetProvider : AppWidgetProvider() {
 
-private var lastClickTime = 0L
-private var lastClickedWidgetId =
-    AppWidgetManager.INVALID_APPWIDGET_ID
+
     
     override fun onUpdate(
         context: Context,
@@ -53,59 +51,73 @@ override fun onReceive(
 
     if (intent.action == "dk.htmlwidget.REFRESH_NOW") {
 
-    val appWidgetId =
-        intent.getIntExtra(
-            AppWidgetManager.EXTRA_APPWIDGET_ID,
-            AppWidgetManager.INVALID_APPWIDGET_ID
-        )
-
-    if (
-        appWidgetId !=
-        AppWidgetManager.INVALID_APPWIDGET_ID
-    ) {
-
-        val now = System.currentTimeMillis()
-
-        val isDoubleClick =
-            appWidgetId == lastClickedWidgetId &&
-            now - lastClickTime < 600
-
-        if (isDoubleClick) {
-
-            lastClickTime = 0L
-            lastClickedWidgetId =
+        val appWidgetId =
+            intent.getIntExtra(
+                AppWidgetManager.EXTRA_APPWIDGET_ID,
                 AppWidgetManager.INVALID_APPWIDGET_ID
-
-            val setupIntent =
-                Intent(
-                    context,
-                    SetupActivity::class.java
-                ).apply {
-                    flags =
-                        Intent.FLAG_ACTIVITY_NEW_TASK
-
-                    putExtra(
-                        AppWidgetManager.EXTRA_APPWIDGET_ID,
-                        appWidgetId
-                    )
-                }
-
-            context.startActivity(setupIntent)
-
-        } else {
-
-            lastClickTime = now
-            lastClickedWidgetId = appWidgetId
-
-            refresh(
-                context,
-                intArrayOf(appWidgetId)
             )
+
+        if (
+            appWidgetId !=
+            AppWidgetManager.INVALID_APPWIDGET_ID
+        ) {
+
+            val prefs =
+                context.getSharedPreferences(
+                    "settings",
+                    Context.MODE_PRIVATE
+                )
+
+            val now = System.currentTimeMillis()
+
+            val lastClickTime =
+                prefs.getLong(
+                    "lastClickTime_$appWidgetId",
+                    0L
+                )
+
+            val isDoubleClick =
+                now - lastClickTime < 800
+
+            if (isDoubleClick) {
+
+                prefs.edit()
+                    .remove("lastClickTime_$appWidgetId")
+                    .apply()
+
+                val setupIntent =
+                    Intent(
+                        context,
+                        SetupActivity::class.java
+                    ).apply {
+                        flags =
+                            Intent.FLAG_ACTIVITY_NEW_TASK
+
+                        putExtra(
+                            AppWidgetManager.EXTRA_APPWIDGET_ID,
+                            appWidgetId
+                        )
+                    }
+
+                context.startActivity(setupIntent)
+
+            } else {
+
+                prefs.edit()
+                    .putLong(
+                        "lastClickTime_$appWidgetId",
+                        now
+                    )
+                    .apply()
+
+                refresh(
+                    context,
+                    intArrayOf(appWidgetId)
+                )
+            }
         }
     }
-    }
 }
-
 override fun onDeleted(
     context: Context,
     appWidgetIds: IntArray
