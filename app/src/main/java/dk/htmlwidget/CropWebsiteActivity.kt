@@ -81,45 +81,77 @@ class CropWebsiteActivity : Activity() {
             MODE_PRIVATE
         )
 
-    val contentWidth =
-    webView.width.coerceAtLeast(1)
+    webView.evaluateJavascript(
+        """
+        (function() {
+            return JSON.stringify({
+                x: window.scrollX,
+                y: window.scrollY,
+                width: document.documentElement.scrollWidth,
+                height: document.documentElement.scrollHeight
+            });
+        })();
+        """.trimIndent()
+    ) { result ->
 
-val contentHeight =
-    webView.height.coerceAtLeast(1)
+        try {
 
-val cropXRatio =
-    webView.scrollX.toFloat() /
-    contentWidth.toFloat()
+            val clean =
+                result
+                    .removePrefix("\"")
+                    .removeSuffix("\"")
+                    .replace("\\\"", "\"")
 
-val cropYRatio =
-    webView.scrollY.toFloat() /
-    contentHeight.toFloat()
+            val json =
+                org.json.JSONObject(clean)
 
-prefs.edit()
-    .putFloat(
-        "cropXRatio_$appWidgetId",
-        cropXRatio
-    )
-    .putFloat(
-        "cropYRatio_$appWidgetId",
-        cropYRatio
-    )
-        .putInt(
-            "cropScrollY_$appWidgetId",
-            webView.scrollY
-        )
-        .putFloat(
-            "cropScale_$appWidgetId",
-            webView.scale
-        )
-        .putBoolean(
-            "cropEnabled_$appWidgetId",
-            true
-        )
-        .apply()
+            val pageWidth =
+                json.getDouble("width")
+                    .coerceAtLeast(1.0)
 
-    finish()
-}
+            val pageHeight =
+                json.getDouble("height")
+                    .coerceAtLeast(1.0)
+
+            val cropXRatio =
+                (json.getDouble("x") / pageWidth)
+                    .toFloat()
+
+            val cropYRatio =
+                (json.getDouble("y") / pageHeight)
+                    .toFloat()
+
+            prefs.edit()
+                .putFloat(
+                    "cropXRatio_$appWidgetId",
+                    cropXRatio
+                )
+                .putFloat(
+                    "cropYRatio_$appWidgetId",
+                    cropYRatio
+                )
+                .putFloat(
+                    "cropScale_$appWidgetId",
+                    webView.scale
+                )
+                .putBoolean(
+                    "cropEnabled_$appWidgetId",
+                    true
+                )
+                .apply()
+
+            finish()
+
+        } catch (e: Exception) {
+
+            android.widget.Toast.makeText(
+                this@CropWebsiteActivity,
+                "Kunne ikke gemme området",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+                }
             }
         )
 
