@@ -53,21 +53,56 @@ override fun onReceive(
 
     if (intent.action == "dk.htmlwidget.REFRESH_NOW") {
 
-        val appWidgetId =
-            intent.getIntExtra(
-                AppWidgetManager.EXTRA_APPWIDGET_ID,
-                AppWidgetManager.INVALID_APPWIDGET_ID
-            )
-
-        if (
-            appWidgetId !=
+    val appWidgetId =
+        intent.getIntExtra(
+            AppWidgetManager.EXTRA_APPWIDGET_ID,
             AppWidgetManager.INVALID_APPWIDGET_ID
-        ) {
+        )
+
+    if (
+        appWidgetId !=
+        AppWidgetManager.INVALID_APPWIDGET_ID
+    ) {
+
+        val now = System.currentTimeMillis()
+
+        val isDoubleClick =
+            appWidgetId == lastClickedWidgetId &&
+            now - lastClickTime < 600
+
+        if (isDoubleClick) {
+
+            lastClickTime = 0L
+            lastClickedWidgetId =
+                AppWidgetManager.INVALID_APPWIDGET_ID
+
+            val setupIntent =
+                Intent(
+                    context,
+                    SetupActivity::class.java
+                ).apply {
+                    flags =
+                        Intent.FLAG_ACTIVITY_NEW_TASK
+
+                    putExtra(
+                        AppWidgetManager.EXTRA_APPWIDGET_ID,
+                        appWidgetId
+                    )
+                }
+
+            context.startActivity(setupIntent)
+
+        } else {
+
+            lastClickTime = now
+            lastClickedWidgetId = appWidgetId
+
             refresh(
                 context,
                 intArrayOf(appWidgetId)
             )
         }
+    }
     }
 }
 
