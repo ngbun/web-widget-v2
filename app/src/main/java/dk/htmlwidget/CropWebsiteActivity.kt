@@ -74,9 +74,6 @@ class CropWebsiteActivity : Activity() {
             return
         }
 
-        /*
-         * Widgettens størrelse.
-         */
         val manager =
             AppWidgetManager.getInstance(this)
 
@@ -110,9 +107,6 @@ class CropWebsiteActivity : Activity() {
             widgetHeight.toFloat() /
                 widgetWidth.toFloat()
 
-        /*
-         * Hovedlayout.
-         */
         val root =
             LinearLayout(this).apply {
 
@@ -145,9 +139,6 @@ class CropWebsiteActivity : Activity() {
             }
         )
 
-        /*
-         * WebView + rød ramme.
-         */
         val websiteContainer =
             FrameLayout(this)
 
@@ -195,9 +186,6 @@ class CropWebsiteActivity : Activity() {
             )
         )
 
-        /*
-         * Rød ramme.
-         */
         val frameOverlay =
             View(this).apply {
 
@@ -233,10 +221,6 @@ class CropWebsiteActivity : Activity() {
             )
         )
 
-        /*
-         * Opret rammen efter containeren
-         * er blevet målt.
-         */
         websiteContainer.post {
 
             val availableWidth =
@@ -335,16 +319,10 @@ class CropWebsiteActivity : Activity() {
                     maxY / 2f
             }
 
-            frameOverlay.x =
-                frameX
-
-            frameOverlay.y =
-                frameY
+            frameOverlay.x = frameX
+            frameOverlay.y = frameY
         }
 
-        /*
-         * Flyt rammen.
-         */
         var touchOffsetX = 0f
         var touchOffsetY = 0f
 
@@ -442,9 +420,6 @@ class CropWebsiteActivity : Activity() {
             // Intet ved almindeligt klik.
         }
 
-        /*
-         * GEM.
-         */
         root.addView(
             Button(this).apply {
 
@@ -453,11 +428,6 @@ class CropWebsiteActivity : Activity() {
 
                 setOnClickListener {
 
-                    /*
-                     * Den faktiske WebView-viewport.
-                     *
-                     * DETTE er vigtigt.
-                     */
                     val viewportWidth =
                         webView.width
                             .coerceAtLeast(1)
@@ -466,6 +436,13 @@ class CropWebsiteActivity : Activity() {
                         webView.height
                             .coerceAtLeast(1)
 
+                    /*
+                     * Den faktiske WebView-scale.
+                     */
+                    val webScale =
+                        webView.scale
+                            .coerceAtLeast(0.01f)
+
                     val scrollX =
                         webView.scrollX
 
@@ -473,21 +450,33 @@ class CropWebsiteActivity : Activity() {
                         webView.scrollY
 
                     /*
-                     * Rammens præcise position
-                     * i hele dokumentets pixel-
-                     * koordinater.
+                     * scrollX/scrollY og rammens
+                     * position er i skærmpixels.
+                     *
+                     * Vi gemmer derfor både den
+                     * præcise pixelposition OG
+                     * dokumentpositionen korrigeret
+                     * for WebViewens scale.
                      */
+                    val screenX =
+                        scrollX +
+                            frameOverlay.x
+
+                    val screenY =
+                        scrollY +
+                            frameOverlay.y
+
                     val documentX =
                         (
-                            scrollX +
-                                frameOverlay.x
+                            screenX /
+                                webScale
                         ).roundToInt()
                             .coerceAtLeast(0)
 
                     val documentY =
                         (
-                            scrollY +
-                                frameOverlay.y
+                            screenY /
+                                webScale
                         ).roundToInt()
                             .coerceAtLeast(0)
 
@@ -500,17 +489,28 @@ class CropWebsiteActivity : Activity() {
                             .coerceAtLeast(1)
 
                     /*
-                     * Gem både:
-                     *
-                     * 1. præcise dokumentkoordinater
-                     * 2. præcis viewportstørrelse
-                     * 3. rammens størrelse
-                     *
-                     * Worker'en kan dermed oprette
-                     * samme WebView-layout.
+                     * Rammens størrelse i samme
+                     * dokumentkoordinater.
                      */
+                    val documentSelectionWidth =
+                        (
+                            selectionWidth /
+                                webScale
+                        ).roundToInt()
+                            .coerceAtLeast(1)
+
+                    val documentSelectionHeight =
+                        (
+                            selectionHeight /
+                                webScale
+                        ).roundToInt()
+                            .coerceAtLeast(1)
+
                     prefs.edit()
 
+                        /*
+                         * Dokumentkoordinater.
+                         */
                         .putInt(
                             "cropDocumentX_$appWidgetId",
                             documentX
@@ -522,6 +522,28 @@ class CropWebsiteActivity : Activity() {
                         )
 
                         .putInt(
+                            "cropDocumentSelectionWidth_$appWidgetId",
+                            documentSelectionWidth
+                        )
+
+                        .putInt(
+                            "cropDocumentSelectionHeight_$appWidgetId",
+                            documentSelectionHeight
+                        )
+
+                        /*
+                         * VIGTIGT:
+                         * Gem den faktiske scale.
+                         */
+                        .putFloat(
+                            "cropWebScale_$appWidgetId",
+                            webScale
+                        )
+
+                        /*
+                         * Viewport.
+                         */
+                        .putInt(
                             "cropViewportWidth_$appWidgetId",
                             viewportWidth
                         )
@@ -531,6 +553,10 @@ class CropWebsiteActivity : Activity() {
                             viewportHeight
                         )
 
+                        /*
+                         * Rammens almindelige
+                         * pixelstørrelse beholdes også.
+                         */
                         .putInt(
                             "cropSelectionWidth_$appWidgetId",
                             selectionWidth
@@ -542,8 +568,7 @@ class CropWebsiteActivity : Activity() {
                         )
 
                         /*
-                         * Behold disse, så vælgeren
-                         * åbner samme sted næste gang.
+                         * Til gendannelse i vælgeren.
                          */
                         .putInt(
                             "websiteScrollX_$appWidgetId",
@@ -587,9 +612,6 @@ class CropWebsiteActivity : Activity() {
             root
         )
 
-        /*
-         * WebView client + samme adblock.
-         */
         webView.webViewClient =
             object : WebViewClient() {
 
@@ -663,10 +685,6 @@ class CropWebsiteActivity : Activity() {
                     url: String?
                 ) {
 
-                    /*
-                     * Gendan tidligere position
-                     * i område-vælgeren.
-                     */
                     val oldScrollX =
                         prefs.getInt(
                             "websiteScrollX_$appWidgetId",
