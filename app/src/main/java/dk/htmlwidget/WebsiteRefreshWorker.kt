@@ -120,35 +120,38 @@ class WebsiteRefreshWorker(
             )
 
         /*
-         * Dokumentkoordinater fra område-vælgeren.
-         *
-         * Disse er gemt i WebViewens
-         * dokumentkoordinater.
+         * NYE CSS-koordinater fra hjemmesiden.
          */
-        val cropDocumentX =
-            prefs.getInt(
-                "cropDocumentX_$appWidgetId",
-                0
-            ).coerceAtLeast(0)
-
-        val cropDocumentY =
-            prefs.getInt(
-                "cropDocumentY_$appWidgetId",
-                0
-            ).coerceAtLeast(0)
-
-        /*
-         * Scale fra WebView'en, hvor brugeren
-         * valgte området.
-         */
-        val savedWebScale =
+        val cropCssX =
             prefs.getFloat(
-                "cropWebScale_$appWidgetId",
-                1f
-            ).coerceAtLeast(0.01f)
+                "cropCssX_$appWidgetId",
+                0f
+            ).coerceAtLeast(0f)
+
+        val cropCssY =
+            prefs.getFloat(
+                "cropCssY_$appWidgetId",
+                0f
+            ).coerceAtLeast(0f)
+
+        val cropCssWidth =
+            prefs.getFloat(
+                "cropCssWidth_$appWidgetId",
+                0f
+            ).coerceAtLeast(0f)
+
+        val cropCssHeight =
+            prefs.getFloat(
+                "cropCssHeight_$appWidgetId",
+                0f
+            ).coerceAtLeast(0f)
 
         /*
-         * Samme viewport som område-vælgeren.
+         * Viewport fra område-vælgeren.
+         *
+         * Worker'en oprettes med samme størrelse,
+         * så hjemmesidens responsive layout bliver
+         * så identisk som muligt.
          */
         val savedViewportWidth =
             prefs.getInt(
@@ -159,37 +162,6 @@ class WebsiteRefreshWorker(
         val savedViewportHeight =
             prefs.getInt(
                 "cropViewportHeight_$appWidgetId",
-                0
-            )
-
-        /*
-         * Størrelsen på det valgte område
-         * i dokumentkoordinater.
-         */
-        val documentSelectionWidth =
-            prefs.getInt(
-                "cropDocumentSelectionWidth_$appWidgetId",
-                0
-            )
-
-        val documentSelectionHeight =
-            prefs.getInt(
-                "cropDocumentSelectionHeight_$appWidgetId",
-                0
-            )
-
-        /*
-         * Almindelig pixelstørrelse som fallback.
-         */
-        val savedSelectionWidth =
-            prefs.getInt(
-                "cropSelectionWidth_$appWidgetId",
-                0
-            )
-
-        val savedSelectionHeight =
-            prefs.getInt(
-                "cropSelectionHeight_$appWidgetId",
                 0
             )
 
@@ -227,8 +199,7 @@ class WebsiteRefreshWorker(
                 .coerceAtLeast(1)
 
         /*
-         * Samme viewportstørrelse som
-         * CropWebsiteActivity.
+         * Samme viewport som område-vælgeren.
          */
         val renderWidth =
             if (
@@ -314,7 +285,14 @@ class WebsiteRefreshWorker(
             latch.countDown()
         }
 
-        fun drawWidget() {
+        /*
+         * Tegner widgetten, når workerens egne
+         * CSS viewport-værdier er aflæst.
+         */
+        fun drawWidget(
+            workerCssViewportWidth: Float,
+            workerCssViewportHeight: Float
+        ) {
 
             if (completed) {
                 return
@@ -330,33 +308,30 @@ class WebsiteRefreshWorker(
                         }
 
                 /*
-                 * Workerens faktiske WebView-scale.
-                 *
-                 * Selv med samme viewport kan vi ikke
-                 * bare antage, at den er identisk.
+                 * Hvor mange Android/WebView-pixels
+                 * svarer til én CSS-pixel i worker'en?
                  */
-                val workerWebScale =
-                    currentWeb.scale
-                        .coerceAtLeast(0.01f)
+                val pixelsPerCssX =
+                    renderWidth.toFloat() /
+                        workerCssViewportWidth
+                            .coerceAtLeast(1f)
+
+                val pixelsPerCssY =
+                    renderHeight.toFloat() /
+                        workerCssViewportHeight
+                            .coerceAtLeast(1f)
 
                 /*
-                 * Dokumentkoordinaterne skal nu
-                 * oversættes til workerens
+                 * CSS-koordinaterne fra vælgeren
+                 * omregnes direkte til workerens
                  * tegningskoordinater.
-                 *
-                 * Eksempel:
-                 *
-                 * Valgt dokument-Y = 2000
-                 * Worker scale = 2
-                 *
-                 * Tegnings-Y = 4000 px.
                  */
                 val drawX =
                     if (cropEnabled) {
 
                         (
-                            cropDocumentX *
-                                workerWebScale
+                            cropCssX *
+                                pixelsPerCssX
                         ).roundToInt()
                             .coerceAtLeast(0)
 
@@ -368,8 +343,8 @@ class WebsiteRefreshWorker(
                     if (cropEnabled) {
 
                         (
-                            cropDocumentY *
-                                workerWebScale
+                            cropCssY *
+                                pixelsPerCssY
                         ).roundToInt()
                             .coerceAtLeast(0)
 
@@ -377,39 +352,15 @@ class WebsiteRefreshWorker(
                         0
                     }
 
-                /*
-                 * Områdets størrelse oversættes
-                 * på samme måde.
-                 */
                 val captureWidth =
                     if (
                         cropEnabled &&
-                        documentSelectionWidth > 0
+                        cropCssWidth > 0f
                     ) {
 
                         (
-                            documentSelectionWidth *
-                                workerWebScale
-                        ).roundToInt()
-                            .coerceAtLeast(1)
-
-                    } else if (
-                        cropEnabled &&
-                        savedSelectionWidth > 0
-                    ) {
-
-                        /*
-                         * Hvis de nye dokumentmål
-                         * mangler, korrigerer vi den
-                         * gamle størrelse mellem de
-                         * to scales.
-                         */
-                        (
-                            savedSelectionWidth *
-                                (
-                                    workerWebScale /
-                                        savedWebScale
-                                )
+                            cropCssWidth *
+                                pixelsPerCssX
                         ).roundToInt()
                             .coerceAtLeast(1)
 
@@ -421,26 +372,12 @@ class WebsiteRefreshWorker(
                 val captureHeight =
                     if (
                         cropEnabled &&
-                        documentSelectionHeight > 0
+                        cropCssHeight > 0f
                     ) {
 
                         (
-                            documentSelectionHeight *
-                                workerWebScale
-                        ).roundToInt()
-                            .coerceAtLeast(1)
-
-                    } else if (
-                        cropEnabled &&
-                        savedSelectionHeight > 0
-                    ) {
-
-                        (
-                            savedSelectionHeight *
-                                (
-                                    workerWebScale /
-                                        savedWebScale
-                                )
+                            cropCssHeight *
+                                pixelsPerCssY
                         ).roundToInt()
                             .coerceAtLeast(1)
 
@@ -453,7 +390,8 @@ class WebsiteRefreshWorker(
                  * Kun det valgte område oprettes
                  * som bitmap.
                  *
-                 * Stadig intet kæmpe helside-bitmap.
+                 * Vi laver stadig IKKE et kæmpe
+                 * bitmap af hele hjemmesiden.
                  */
                 val selectedBitmap =
                     Bitmap.createBitmap(
@@ -470,10 +408,11 @@ class WebsiteRefreshWorker(
                 canvas.save()
 
                 /*
-                 * Flyt Canvas til den præcise
-                 * dokumentposition.
+                 * Ingen scrollTo().
                  *
-                 * WebView'en bliver IKKE scrollet.
+                 * Hele dokumenttegningen flyttes,
+                 * så det valgte CSS-område rammer
+                 * bitmap'ets øverste venstre hjørne.
                  */
                 canvas.translate(
                     -drawX.toFloat(),
@@ -487,8 +426,8 @@ class WebsiteRefreshWorker(
                 canvas.restore()
 
                 /*
-                 * Det valgte område skaleres til
-                 * widgettens faktiske størrelse.
+                 * Skaler udsnittet til widgettens
+                 * faktiske størrelse.
                  */
                 val finalBitmap =
                     if (
@@ -525,8 +464,9 @@ class WebsiteRefreshWorker(
                 )
 
                 /*
-                 * Gem de faktiske koordinater,
-                 * så vi har dem til fejlsøgning.
+                 * Gem workerens beregnede værdier.
+                 * De kan bruges til fejlsøgning,
+                 * hvis vi stadig har en forskydning.
                  */
                 prefs.edit()
 
@@ -541,8 +481,23 @@ class WebsiteRefreshWorker(
                     )
 
                     .putFloat(
-                        "cropWorkerWebScale_$appWidgetId",
-                        workerWebScale
+                        "cropWorkerCssViewportWidth_$appWidgetId",
+                        workerCssViewportWidth
+                    )
+
+                    .putFloat(
+                        "cropWorkerCssViewportHeight_$appWidgetId",
+                        workerCssViewportHeight
+                    )
+
+                    .putFloat(
+                        "cropWorkerPixelsPerCssX_$appWidgetId",
+                        pixelsPerCssX
+                    )
+
+                    .putFloat(
+                        "cropWorkerPixelsPerCssY_$appWidgetId",
+                        pixelsPerCssY
                     )
 
                     .apply()
@@ -551,6 +506,76 @@ class WebsiteRefreshWorker(
             } finally {
 
                 cleanup()
+            }
+        }
+
+        /*
+         * Spørg workerens hjemmeside om dens
+         * faktiske CSS viewport.
+         */
+        fun readWorkerCssViewport() {
+
+            val currentWeb =
+                web
+                    ?: run {
+                        cleanup()
+                        return
+                    }
+
+            val javascript =
+                """
+                (function() {
+                    return [
+                        window.innerWidth || document.documentElement.clientWidth || 1,
+                        window.innerHeight || document.documentElement.clientHeight || 1
+                    ].join(",");
+                })();
+                """.trimIndent()
+
+            currentWeb.evaluateJavascript(
+                javascript
+            ) { result ->
+
+                try {
+
+                    val cleaned =
+                        result
+                            .trim()
+                            .removePrefix("\"")
+                            .removeSuffix("\"")
+                            .replace("\\\"", "\"")
+
+                    val values =
+                        cleaned.split(",")
+
+                    val cssWidth =
+                        values.getOrNull(0)
+                            ?.toFloatOrNull()
+                            ?.coerceAtLeast(1f)
+                            ?: renderWidth.toFloat()
+
+                    val cssHeight =
+                        values.getOrNull(1)
+                            ?.toFloatOrNull()
+                            ?.coerceAtLeast(1f)
+                            ?: renderHeight.toFloat()
+
+                    drawWidget(
+                        cssWidth,
+                        cssHeight
+                    )
+
+                } catch (_: Exception) {
+
+                    /*
+                     * Fallback:
+                     * 1 CSS-pixel = 1 render-pixel.
+                     */
+                    drawWidget(
+                        renderWidth.toFloat(),
+                        renderHeight.toFloat()
+                    )
+                }
             }
         }
 
@@ -592,10 +617,6 @@ class WebsiteRefreshWorker(
                 null
             )
 
-            /*
-             * Samme indstillinger som
-             * område-vælgeren.
-             */
             web!!.settings.apply {
 
                 javaScriptEnabled = true
@@ -694,9 +715,14 @@ class WebsiteRefreshWorker(
                         url: String?
                     ) {
 
+                        /*
+                         * Behold 6 sekunders ventetid,
+                         * så dynamisk indhold får tid
+                         * til at falde på plads.
+                         */
                         mainHandler.postDelayed({
 
-                            drawWidget()
+                            readWorkerCssViewport()
 
                         }, 6000)
                     }
