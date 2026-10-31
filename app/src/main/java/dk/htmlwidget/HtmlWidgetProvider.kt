@@ -38,8 +38,35 @@ class HtmlWidgetProvider : AppWidgetProvider() {
     }
 
     override fun onEnabled(context: Context) {
-        super.onEnabled(context)
+    super.onEnabled(context)
+}
+
+override fun onReceive(
+    context: Context,
+    intent: Intent
+) {
+    super.onReceive(context, intent)
+
+    if (intent.action == "dk.htmlwidget.REFRESH_NOW") {
+
+        val appWidgetId =
+            intent.getIntExtra(
+                AppWidgetManager.EXTRA_APPWIDGET_ID,
+                AppWidgetManager.INVALID_APPWIDGET_ID
+            )
+
+        if (
+            appWidgetId !=
+            AppWidgetManager.INVALID_APPWIDGET_ID
+        ) {
+            refresh(
+                context,
+                intArrayOf(appWidgetId)
+            )
+        }
     }
+}
+
 override fun onDeleted(
     context: Context,
     appWidgetIds: IntArray
