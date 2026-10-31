@@ -12,6 +12,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import java.io.File
@@ -101,19 +102,20 @@ class CropWebsiteActivity : Activity() {
         ).roundToInt()
             .coerceAtLeast(1)
 
-        val layout =
+        val root =
             LinearLayout(this).apply {
                 orientation =
                     LinearLayout.VERTICAL
             }
 
-        layout.addView(
+        root.addView(
             TextView(this).apply {
 
                 text =
-                    "Flyt den røde ramme til det område, der skal vises i widgetten."
+                    "Scroll gennem hjemmesiden og flyt den røde ramme til det område, der skal vises i widgetten."
 
-                textSize = 16f
+                textSize =
+                    16f
 
                 setPadding(
                     30,
@@ -131,8 +133,27 @@ class CropWebsiteActivity : Activity() {
                 widgetHeight
             )
 
-        layout.addView(
-            cropView,
+        /*
+         * ScrollView gør det muligt at bevæge sig
+         * op og ned gennem det lange preview.
+         */
+        val scrollView =
+            ScrollView(this).apply {
+
+                isFillViewport =
+                    false
+
+                addView(
+                    cropView,
+                    ScrollView.LayoutParams(
+                        ScrollView.LayoutParams.MATCH_PARENT,
+                        ScrollView.LayoutParams.WRAP_CONTENT
+                    )
+                )
+            }
+
+        root.addView(
+            scrollView,
             LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
@@ -140,7 +161,7 @@ class CropWebsiteActivity : Activity() {
             )
         )
 
-        layout.addView(
+        root.addView(
             Button(this).apply {
 
                 text =
@@ -180,7 +201,7 @@ class CropWebsiteActivity : Activity() {
             }
         )
 
-        setContentView(layout)
+        setContentView(root)
     }
 
     private inner class CropPreviewView(
@@ -189,26 +210,25 @@ class CropWebsiteActivity : Activity() {
         private val cropHeight: Int
     ) : View(this) {
 
-        var cropX = 0
+        var cropX =
+            0
             private set
 
-        var cropY = 0
+        var cropY =
+            0
             private set
 
         private var displayScale =
             1f
-
-        private var displayOffsetX =
-            0f
-
-        private var displayOffsetY =
-            0f
 
         private var lastTouchX =
             0f
 
         private var lastTouchY =
             0f
+
+        private var draggingFrame =
+            false
 
         private val bitmapPaint =
             Paint(
@@ -236,12 +256,97 @@ class CropWebsiteActivity : Activity() {
 
                 color =
                     android.graphics.Color.argb(
-                        110,
+                        100,
                         0,
                         0,
                         0
                     )
             }
+
+        init {
+
+            /*
+             * Bevar tidligere valgt område,
+             * hvis brugeren åbner område-vælgeren igen.
+             */
+            val prefs =
+                getSharedPreferences(
+                    "settings",
+                    MODE_PRIVATE
+                )
+
+            cropX =
+                prefs.getInt(
+                    "cropBitmapX_$appWidgetId",
+                    0
+                )
+
+            cropY =
+                prefs.getInt(
+                    "cropBitmapY_$appWidgetId",
+                    0
+                )
+
+            /*
+             * Vi bestemmer højden ud fra billedets
+             * bredde i stedet for skærmens højde.
+             *
+             * Derfor bliver hele det lange preview
+             * liggende lodret i ScrollView.
+             */
+            post {
+
+                val availableWidth =
+                    width.coerceAtLeast(1)
+
+                displayScale =
+                    availableWidth.toFloat() /
+                        bitmap.width.toFloat()
+
+                val requiredHeight =
+                    (
+                        bitmap.height *
+                            displayScale
+                        ).roundToInt()
+                        .coerceAtLeast(1)
+
+                layoutParams =
+                    layoutParams.apply {
+                        height =
+                            requiredHeight
+                    }
+
+                requestLayout()
+                invalidate()
+            }
+        }
+
+        override fun onMeasure(
+            widthMeasureSpec: Int,
+            heightMeasureSpec: Int
+        ) {
+
+            val measuredWidth =
+                MeasureSpec.getSize(
+                    widthMeasureSpec
+                ).coerceAtLeast(1)
+
+            displayScale =
+                measuredWidth.toFloat() /
+                    bitmap.width.toFloat()
+
+            val measuredHeight =
+                (
+                    bitmap.height *
+                        displayScale
+                    ).roundToInt()
+                    .coerceAtLeast(1)
+
+            setMeasuredDimension(
+                measuredWidth,
+                measuredHeight
+            )
+        }
 
         override fun onDraw(
             canvas: Canvas
@@ -256,38 +361,19 @@ class CropWebsiteActivity : Activity() {
             }
 
             displayScale =
-                minOf(
-                    width.toFloat() /
-                        bitmap.width.toFloat(),
-
-                    height.toFloat() /
-                        bitmap.height.toFloat()
-                )
-
-            val shownWidth =
-                bitmap.width *
-                    displayScale
+                width.toFloat() /
+                    bitmap.width.toFloat()
 
             val shownHeight =
                 bitmap.height *
                     displayScale
 
-            displayOffsetX =
-                (width - shownWidth) /
-                    2f
-
-            displayOffsetY =
-                (height - shownHeight) /
-                    2f
-
             val destination =
                 RectF(
-                    displayOffsetX,
-                    displayOffsetY,
-                    displayOffsetX +
-                        shownWidth,
-                    displayOffsetY +
-                        shownHeight
+                    0f,
+                    0f,
+                    width.toFloat(),
+                    shownHeight
                 )
 
             canvas.drawBitmap(
@@ -297,47 +383,69 @@ class CropWebsiteActivity : Activity() {
                 bitmapPaint
             )
 
+            val maxX =
+                (
+                    bitmap.width -
+                        cropWidth
+                    ).coerceAtLeast(0)
+
+            val maxY =
+                (
+                    bitmap.height -
+                        cropHeight
+                    ).coerceAtLeast(0)
+
+            cropX =
+                cropX.coerceIn(
+                    0,
+                    maxX
+                )
+
+            cropY =
+                cropY.coerceIn(
+                    0,
+                    maxY
+                )
+
             val left =
-                displayOffsetX +
-                    cropX *
+                cropX *
                     displayScale
 
             val top =
-                displayOffsetY +
-                    cropY *
+                cropY *
                     displayScale
 
             val right =
                 left +
                     cropWidth *
-                    displayScale
+                        displayScale
 
             val bottom =
                 top +
                     cropHeight *
-                    displayScale
+                        displayScale
 
             /*
-             * Gør området uden for widgetrammen mørkere.
+             * Mørk området uden for widgetrammen.
              */
             canvas.drawRect(
-                displayOffsetX,
-                displayOffsetY,
-                displayOffsetX + shownWidth,
+                0f,
+                0f,
+                width.toFloat(),
                 top,
                 shadePaint
             )
 
             canvas.drawRect(
-                displayOffsetX,
+                0f,
                 bottom,
-                displayOffsetX + shownWidth,
-                displayOffsetY + shownHeight,
+                width.toFloat(),
+                shownHeight,
                 shadePaint
             )
 
             canvas.drawRect(
-                displayOffsetX,
+                0f,
                 top,
                 left,
                 bottom,
@@ -347,11 +455,14 @@ class CropWebsiteActivity : Activity() {
             canvas.drawRect(
                 right,
                 top,
-                displayOffsetX + shownWidth,
+                width.toFloat(),
                 bottom,
                 shadePaint
             )
 
+            /*
+             * Selve den røde widgetramme.
+             */
             canvas.drawRect(
                 left,
                 top,
@@ -365,9 +476,52 @@ class CropWebsiteActivity : Activity() {
             event: MotionEvent
         ): Boolean {
 
+            if (displayScale <= 0f) {
+                return false
+            }
+
             when (event.actionMasked) {
 
                 MotionEvent.ACTION_DOWN -> {
+
+                    val frameLeft =
+                        cropX *
+                            displayScale
+
+                    val frameTop =
+                        cropY *
+                            displayScale
+
+                    val frameRight =
+                        frameLeft +
+                            cropWidth *
+                                displayScale
+
+                    val frameBottom =
+                        frameTop +
+                            cropHeight *
+                                displayScale
+
+                    /*
+                     * Kun hvis fingeren starter på den røde ramme,
+                     * flytter vi rammen.
+                     *
+                     * Starter fingeren udenfor, får ScrollView
+                     * lov til at scrolle hjemmesiden.
+                     */
+                    draggingFrame =
+                        event.x >= frameLeft &&
+                        event.x <= frameRight &&
+                        event.y >= frameTop &&
+                        event.y <= frameBottom
+
+                    if (!draggingFrame) {
+                        return false
+                    }
+
+                    parent.requestDisallowInterceptTouchEvent(
+                        true
+                    )
 
                     lastTouchX =
                         event.x
@@ -380,21 +534,21 @@ class CropWebsiteActivity : Activity() {
 
                 MotionEvent.ACTION_MOVE -> {
 
-                    if (displayScale <= 0f) {
-                        return true
+                    if (!draggingFrame) {
+                        return false
                     }
 
                     val deltaX =
                         (
                             (event.x - lastTouchX) /
                                 displayScale
-                        ).roundToInt()
+                            ).roundToInt()
 
                     val deltaY =
                         (
                             (event.y - lastTouchY) /
                                 displayScale
-                        ).roundToInt()
+                            ).roundToInt()
 
                     val maxX =
                         (
@@ -436,14 +590,23 @@ class CropWebsiteActivity : Activity() {
                 MotionEvent.ACTION_UP,
                 MotionEvent.ACTION_CANCEL -> {
 
-                    performClick()
-                    return true
+                    if (draggingFrame) {
+
+                        draggingFrame =
+                            false
+
+                        parent.requestDisallowInterceptTouchEvent(
+                            false
+                        )
+
+                        performClick()
+
+                        return true
+                    }
                 }
             }
 
-            return super.onTouchEvent(
-                event
-            )
+            return false
         }
 
         override fun performClick(): Boolean {
