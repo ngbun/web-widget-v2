@@ -341,12 +341,14 @@ val cropScale =
 
                             try {
 
-                                if (cropEnabled) {
+                                /*
+if (cropEnabled) {
     web!!.scrollTo(
         cropScrollX,
         cropScrollY
     )
 }
+*/
 
                                 val bitmap =
                                     Bitmap.createBitmap(
