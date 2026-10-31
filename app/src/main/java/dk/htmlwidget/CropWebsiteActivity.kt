@@ -53,6 +53,7 @@ class CropWebsiteActivity : Activity() {
                 settings.builtInZoomControls = true
                 settings.displayZoomControls = false
                 settings.useWideViewPort = true
+                settings.loadWithOverviewMode = false
 
                 webViewClient =
                     WebViewClient()
