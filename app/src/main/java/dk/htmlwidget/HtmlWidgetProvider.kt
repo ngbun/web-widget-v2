@@ -81,47 +81,7 @@ class HtmlWidgetProvider : AppWidgetProvider() {
                  * Et tryk på widgetten åbner
                  * WebsiteRenderActivity.
                  */
-                if (!website.isNullOrBlank()) {
-
-                    val views = RemoteViews(
-                        context.packageName,
-                        R.layout.widget_layout
-                    )
-
-                    val intent = Intent(
-                        context,
-                        WebsiteRenderActivity::class.java
-                    ).apply {
-                        putExtra(
-                            AppWidgetManager.EXTRA_APPWIDGET_ID,
-                            id
-                        )
-
-                        flags =
-                            Intent.FLAG_ACTIVITY_NEW_TASK or
-                            Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    }
-
-                    val pendingIntent =
-                        PendingIntent.getActivity(
-                            context,
-                            id,
-                            intent,
-                            PendingIntent.FLAG_UPDATE_CURRENT or
-                            PendingIntent.FLAG_IMMUTABLE
-                        )
-
-                    views.setOnClickPendingIntent(
-                        R.id.widget_image,
-                        pendingIntent
-                    )
-
-                    manager.updateAppWidget(
-                        id,
-                        views
-                    )
-
-                    return@forEach
+                
                 }
 
                 if (!website.isNullOrBlank()) {
