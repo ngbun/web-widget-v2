@@ -40,7 +40,38 @@ class HtmlWidgetProvider : AppWidgetProvider() {
     override fun onEnabled(context: Context) {
         super.onEnabled(context)
     }
+override fun onDeleted(
+    context: Context,
+    appWidgetIds: IntArray
+) {
+    super.onDeleted(context, appWidgetIds)
 
+    val workManager =
+        androidx.work.WorkManager.getInstance(context)
+
+    val prefs =
+        context.getSharedPreferences(
+            "settings",
+            Context.MODE_PRIVATE
+        )
+
+    appWidgetIds.forEach { id ->
+
+        workManager.cancelUniqueWork(
+            "html-widget-refresh-$id"
+        )
+
+        workManager.cancelUniqueWork(
+            "website-refresh-$id"
+        )
+
+        prefs.edit()
+            .remove("url_$id")
+            .remove("localUri_$id")
+            .remove("refreshMinutes_$id")
+            .apply()
+    }
+}
     companion object {
 
         fun refresh(
