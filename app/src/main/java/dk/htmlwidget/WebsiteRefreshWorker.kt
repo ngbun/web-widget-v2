@@ -86,7 +86,7 @@ class WebsiteRefreshWorker(
 
         val completed =
             latch.await(
-                45,
+                30,
                 TimeUnit.SECONDS
             )
 
@@ -165,47 +165,17 @@ class WebsiteRefreshWorker(
             .coerceAtLeast(1)
 
         /*
-         * Samme bredde som den fungerende version.
+         * Stabil version:
+         * Samme bredde som før.
+         * Previewet går op til 12 widgethøjder ned.
          */
         val renderWidth =
             width * 3
 
-        /*
-         * Den gamle version stoppede altid ved:
-         *
-         * height * 12
-         *
-         * Nu bruger vi den højde, WebView tidligere
-         * har målt for hele hjemmesiden.
-         */
-        val detectedPageHeight =
-            prefs.getInt(
-                "detectedPageHeight_$appWidgetId",
-                0
-            )
-
-        val minimumRenderHeight =
-            (height * 12)
-                .coerceAtLeast(height * 3)
-
-        /*
-         * Brug hele den målte side, når vi har målingen.
-         *
-         * 30000 px er sikkerhedsgrænsen for at undgå,
-         * at Android løber tør for hukommelse på
-         * ekstremt lange hjemmesider.
-         */
         val renderHeight =
-            if (detectedPageHeight > minimumRenderHeight) {
-
-                detectedPageHeight
-                    .coerceAtMost(30000)
-
-            } else {
-
-                minimumRenderHeight
-                    .coerceAtMost(30000)
-            }
+            (height * 12)
+                .coerceAtMost(12000)
+                .coerceAtLeast(height * 3)
 
         val displayManager =
             context.getSystemService(
@@ -279,9 +249,6 @@ class WebsiteRefreshWorker(
 
             try {
 
-                /*
-                 * Hele den renderede hjemmeside.
-                 */
                 val fullBitmap =
                     Bitmap.createBitmap(
                         renderWidth,
@@ -295,10 +262,7 @@ class WebsiteRefreshWorker(
                 web?.draw(canvas)
 
                 /*
-                 * Gem hele previewet.
-                 *
-                 * CropWebsiteActivity kan derefter
-                 * scrolle gennem hele dette bitmap.
+                 * Gem previewet til område-vælgeren.
                  */
                 val previewFile =
                     File(
@@ -318,9 +282,7 @@ class WebsiteRefreshWorker(
                 }
 
                 /*
-                 * Den fungerende crop-metode bevares.
-                 *
-                 * Vi beskærer direkte i bitmap'et.
+                 * Beskær direkte i samme bitmap.
                  * Ingen WebView-scroll.
                  */
                 val finalBitmap =
@@ -382,7 +344,6 @@ class WebsiteRefreshWorker(
                 )
 
             } catch (_: Exception) {
-
             } finally {
 
                 cleanup()
@@ -407,7 +368,6 @@ class WebsiteRefreshWorker(
             val display =
                 virtualDisplay?.display
                     ?: run {
-
                         cleanup()
                         return false
                     }
@@ -430,23 +390,14 @@ class WebsiteRefreshWorker(
 
             web!!.settings.apply {
 
-                javaScriptEnabled =
-                    true
+                javaScriptEnabled = true
+                domStorageEnabled = true
+                loadsImagesAutomatically = true
 
-                domStorageEnabled =
-                    true
+                useWideViewPort = true
+                loadWithOverviewMode = false
 
-                loadsImagesAutomatically =
-                    true
-
-                useWideViewPort =
-                    true
-
-                loadWithOverviewMode =
-                    false
-
-                offscreenPreRaster =
-                    true
+                offscreenPreRaster = true
             }
 
             presentation!!.setContentView(
@@ -531,40 +482,11 @@ class WebsiteRefreshWorker(
                         url: String?
                     ) {
 
-                        /*
-                         * Vent på billeder, JavaScript osv.
-                         */
                         mainHandler.postDelayed({
-
-                            /*
-                             * Find den aktuelle fulde sidehøjde.
-                             */
-                            val measuredPageHeight =
-                                (
-                                    (view?.contentHeight ?: 0) *
-                                        (view?.scale ?: 1f)
-                                    ).roundToInt()
-
-                            /*
-                             * Gem målingen til næste rendering.
-                             *
-                             * Hvis siden er længere end den aktuelle
-                             * renderhøjde, bliver næste rendering
-                             * automatisk højere.
-                             */
-                            if (measuredPageHeight > 0) {
-
-                                prefs.edit()
-                                    .putInt(
-                                        "detectedPageHeight_$appWidgetId",
-                                        measuredPageHeight
-                                    )
-                                    .apply()
-                            }
 
                             drawWidget()
 
-                        }, 7000)
+                        }, 6000)
                     }
                 }
 
@@ -573,8 +495,7 @@ class WebsiteRefreshWorker(
             )
 
             /*
-             * Længere timeout fordi hele siden
-             * nu kan være væsentligt større.
+             * Sikkerheds-timeout.
              */
             mainHandler.postDelayed({
 
@@ -582,7 +503,7 @@ class WebsiteRefreshWorker(
                     cleanup()
                 }
 
-            }, 35000)
+            }, 25000)
 
             true
 
