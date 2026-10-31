@@ -241,6 +241,62 @@ class WebsiteRefreshWorker(
 
             web!!.webViewClient =
                 object : WebViewClient() {
+                    override fun shouldInterceptRequest(
+    view: WebView?,
+    request: WebResourceRequest?
+): android.webkit.WebResourceResponse? {
+
+    val adBlockEnabled =
+        context.getSharedPreferences(
+            "settings",
+            Context.MODE_PRIVATE
+        ).getBoolean("adblock", true)
+
+    if (!adBlockEnabled) {
+        return super.shouldInterceptRequest(
+            view,
+            request
+        )
+    }
+
+    val url =
+        request?.url
+            ?.host
+            ?.lowercase()
+            ?: return super.shouldInterceptRequest(
+                view,
+                request
+            )
+
+    val blocked =
+        listOf(
+            "doubleclick.net",
+            "googlesyndication.com",
+            "googleadservices.com",
+            "adservice.google.com",
+            "googletagmanager.com",
+            "google-analytics.com",
+            "scorecardresearch.com",
+            "adnxs.com",
+            "criteo.com",
+            "criteo.net"
+        ).any {
+            url == it || url.endsWith(".$it")
+        }
+
+    return if (blocked) {
+        android.webkit.WebResourceResponse(
+            "text/plain",
+            "UTF-8",
+            null
+        )
+    } else {
+        super.shouldInterceptRequest(
+            view,
+            request
+        )
+    }
+}
 
                     override fun onPageFinished(
                         view: WebView?,
