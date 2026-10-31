@@ -174,7 +174,10 @@ remove("url_$appWidgetId")
         "adblock",
         adBlock.isChecked
     )
-
+putInt(
+    "refreshMinutes_$appWidgetId",
+    refreshValues[refreshSlider.progress]
+)
     apply()
 }
 
