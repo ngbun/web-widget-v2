@@ -170,10 +170,16 @@ val cropScale =
         val surfaceTexture =
             SurfaceTexture(0)
 
-        surfaceTexture.setDefaultBufferSize(
-            width,
-            height
-        )
+        val renderWidth =
+    if (cropEnabled) width * 3 else width
+
+val renderHeight =
+    if (cropEnabled) height * 3 else height
+
+surfaceTexture.setDefaultBufferSize(
+    renderWidth,
+    renderHeight
+)
 
         val surface =
             Surface(surfaceTexture)
