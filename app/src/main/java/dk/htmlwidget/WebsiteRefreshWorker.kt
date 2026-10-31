@@ -107,6 +107,36 @@ class WebsiteRefreshWorker(
 
         val context = applicationContext
 
+val prefs =
+    context.getSharedPreferences(
+        "settings",
+        Context.MODE_PRIVATE
+    )
+
+val cropEnabled =
+    prefs.getBoolean(
+        "cropEnabled_$appWidgetId",
+        false
+    )
+
+val cropScrollX =
+    prefs.getInt(
+        "cropScrollX_$appWidgetId",
+        0
+    )
+
+val cropScrollY =
+    prefs.getInt(
+        "cropScrollY_$appWidgetId",
+        0
+    )
+
+val cropScale =
+    prefs.getFloat(
+        "cropScale_$appWidgetId",
+        1f
+    )
+        
         val manager =
             AppWidgetManager.getInstance(context)
 
