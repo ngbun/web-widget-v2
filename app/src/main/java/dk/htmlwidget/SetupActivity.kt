@@ -79,7 +79,7 @@ class SetupActivity : Activity() {
             text = "Bloker reklamer og tracking"
             isChecked = prefs.getBoolean("adblock", true)
         }
-
+layout.addView(adBlock)
         val refreshValues = intArrayOf(
     15, 30, 45, 60,
     120, 180, 240, 300, 360, 420,
