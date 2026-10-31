@@ -428,182 +428,293 @@ class CropWebsiteActivity : Activity() {
 
                 setOnClickListener {
 
-                    val viewportWidth =
-                        webView.width
-                            .coerceAtLeast(1)
-
-                    val viewportHeight =
-                        webView.height
-                            .coerceAtLeast(1)
-
                     /*
-                     * Den faktiske WebView-scale.
-                     */
-                    val webScale =
-                        webView.scale
-                            .coerceAtLeast(0.01f)
-
-                    val scrollX =
-                        webView.scrollX
-
-                    val scrollY =
-                        webView.scrollY
-
-                    /*
-                     * scrollX/scrollY og rammens
-                     * position er i skærmpixels.
+                     * Spørg SELVE hjemmesiden om
+                     * scrollposition og viewport.
                      *
-                     * Vi gemmer derfor både den
-                     * præcise pixelposition OG
-                     * dokumentpositionen korrigeret
-                     * for WebViewens scale.
+                     * Alle disse værdier er i
+                     * browserens CSS-koordinater.
                      */
-                    val screenX =
-                        scrollX +
-                            frameOverlay.x
+                    val javascript =
+                        """
+                        (function() {
+                            return [
+                                window.scrollX || window.pageXOffset || 0,
+                                window.scrollY || window.pageYOffset || 0,
+                                window.innerWidth || document.documentElement.clientWidth || 1,
+                                window.innerHeight || document.documentElement.clientHeight || 1,
+                                document.documentElement.scrollWidth || 1,
+                                Math.max(
+                                    document.body ? document.body.scrollHeight : 0,
+                                    document.documentElement.scrollHeight || 0
+                                )
+                            ].join(",");
+                        })();
+                        """.trimIndent()
 
-                    val screenY =
-                        scrollY +
-                            frameOverlay.y
+                    webView.evaluateJavascript(
+                        javascript
+                    ) { result ->
 
-                    val documentX =
-                        (
-                            screenX /
-                                webScale
-                        ).roundToInt()
-                            .coerceAtLeast(0)
+                        try {
 
-                    val documentY =
-                        (
-                            screenY /
-                                webScale
-                        ).roundToInt()
-                            .coerceAtLeast(0)
+                            /*
+                             * evaluateJavascript returnerer
+                             * en JSON-string, derfor fjernes
+                             * citationstegn.
+                             */
+                            val cleaned =
+                                result
+                                    .trim()
+                                    .removePrefix("\"")
+                                    .removeSuffix("\"")
+                                    .replace("\\\"", "\"")
 
-                    val selectionWidth =
-                        frameOverlay.width
-                            .coerceAtLeast(1)
+                            val values =
+                                cleaned.split(",")
 
-                    val selectionHeight =
-                        frameOverlay.height
-                            .coerceAtLeast(1)
+                            if (values.size < 6) {
 
-                    /*
-                     * Rammens størrelse i samme
-                     * dokumentkoordinater.
-                     */
-                    val documentSelectionWidth =
-                        (
-                            selectionWidth /
-                                webScale
-                        ).roundToInt()
-                            .coerceAtLeast(1)
+                                Toast.makeText(
+                                    this@CropWebsiteActivity,
+                                    "Kunne ikke aflæse hjemmesidens position.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
 
-                    val documentSelectionHeight =
-                        (
-                            selectionHeight /
-                                webScale
-                        ).roundToInt()
-                            .coerceAtLeast(1)
+                                return@evaluateJavascript
+                            }
 
-                    prefs.edit()
+                            val jsScrollX =
+                                values[0]
+                                    .toFloatOrNull()
+                                    ?: 0f
 
-                        /*
-                         * Dokumentkoordinater.
-                         */
-                        .putInt(
-                            "cropDocumentX_$appWidgetId",
-                            documentX
-                        )
+                            val jsScrollY =
+                                values[1]
+                                    .toFloatOrNull()
+                                    ?: 0f
 
-                        .putInt(
-                            "cropDocumentY_$appWidgetId",
-                            documentY
-                        )
+                            val jsViewportWidth =
+                                values[2]
+                                    .toFloatOrNull()
+                                    ?.coerceAtLeast(1f)
+                                    ?: 1f
 
-                        .putInt(
-                            "cropDocumentSelectionWidth_$appWidgetId",
-                            documentSelectionWidth
-                        )
+                            val jsViewportHeight =
+                                values[3]
+                                    .toFloatOrNull()
+                                    ?.coerceAtLeast(1f)
+                                    ?: 1f
 
-                        .putInt(
-                            "cropDocumentSelectionHeight_$appWidgetId",
-                            documentSelectionHeight
-                        )
+                            val jsDocumentWidth =
+                                values[4]
+                                    .toFloatOrNull()
+                                    ?.coerceAtLeast(
+                                        jsViewportWidth
+                                    )
+                                    ?: jsViewportWidth
 
-                        /*
-                         * VIGTIGT:
-                         * Gem den faktiske scale.
-                         */
-                        .putFloat(
-                            "cropWebScale_$appWidgetId",
-                            webScale
-                        )
+                            val jsDocumentHeight =
+                                values[5]
+                                    .toFloatOrNull()
+                                    ?.coerceAtLeast(
+                                        jsViewportHeight
+                                    )
+                                    ?: jsViewportHeight
 
-                        /*
-                         * Viewport.
-                         */
-                        .putInt(
-                            "cropViewportWidth_$appWidgetId",
-                            viewportWidth
-                        )
+                            /*
+                             * Hvor mange Android-pixels
+                             * svarer til én CSS-pixel?
+                             *
+                             * Vi beregner den direkte ud
+                             * fra den faktiske WebView og
+                             * JS window.innerWidth.
+                             *
+                             * Dermed er vi ikke afhængige
+                             * af at gætte WebView.scale.
+                             */
+                            val pixelsPerCssX =
+                                webView.width.toFloat() /
+                                    jsViewportWidth
 
-                        .putInt(
-                            "cropViewportHeight_$appWidgetId",
-                            viewportHeight
-                        )
+                            val pixelsPerCssY =
+                                webView.height.toFloat() /
+                                    jsViewportHeight
 
-                        /*
-                         * Rammens almindelige
-                         * pixelstørrelse beholdes også.
-                         */
-                        .putInt(
-                            "cropSelectionWidth_$appWidgetId",
-                            selectionWidth
-                        )
+                            /*
+                             * Den røde rammes position er
+                             * Android-pixels.
+                             *
+                             * Konverter den til CSS-pixels
+                             * og læg hjemmesidens egen
+                             * scrollposition til.
+                             */
+                            val frameCssX =
+                                frameOverlay.x /
+                                    pixelsPerCssX
 
-                        .putInt(
-                            "cropSelectionHeight_$appWidgetId",
-                            selectionHeight
-                        )
+                            val frameCssY =
+                                frameOverlay.y /
+                                    pixelsPerCssY
 
-                        /*
-                         * Til gendannelse i vælgeren.
-                         */
-                        .putInt(
-                            "websiteScrollX_$appWidgetId",
-                            scrollX
-                        )
+                            val cropCssX =
+                                jsScrollX +
+                                    frameCssX
 
-                        .putInt(
-                            "websiteScrollY_$appWidgetId",
-                            scrollY
-                        )
+                            val cropCssY =
+                                jsScrollY +
+                                    frameCssY
 
-                        .putFloat(
-                            "cropFrameX_$appWidgetId",
-                            frameOverlay.x
-                        )
+                            val cropCssWidth =
+                                frameOverlay.width /
+                                    pixelsPerCssX
 
-                        .putFloat(
-                            "cropFrameY_$appWidgetId",
-                            frameOverlay.y
-                        )
+                            val cropCssHeight =
+                                frameOverlay.height /
+                                    pixelsPerCssY
 
-                        .putBoolean(
-                            "cropEnabled_$appWidgetId",
-                            true
-                        )
+                            /*
+                             * Vi beholder også WebView.scale
+                             * som ekstra information, men de
+                             * nye CSS-værdier er nu vores
+                             * primære koordinater.
+                             */
+                            val webScale =
+                                webView.scale
+                                    .coerceAtLeast(0.01f)
 
-                        .apply()
+                            prefs.edit()
 
-                    Toast.makeText(
-                        this@CropWebsiteActivity,
-                        "Området er gemt",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                                /*
+                                 * NYE præcise CSS-koordinater.
+                                 */
+                                .putFloat(
+                                    "cropCssX_$appWidgetId",
+                                    cropCssX
+                                )
 
-                    finish()
+                                .putFloat(
+                                    "cropCssY_$appWidgetId",
+                                    cropCssY
+                                )
+
+                                .putFloat(
+                                    "cropCssWidth_$appWidgetId",
+                                    cropCssWidth
+                                )
+
+                                .putFloat(
+                                    "cropCssHeight_$appWidgetId",
+                                    cropCssHeight
+                                )
+
+                                .putFloat(
+                                    "cropCssViewportWidth_$appWidgetId",
+                                    jsViewportWidth
+                                )
+
+                                .putFloat(
+                                    "cropCssViewportHeight_$appWidgetId",
+                                    jsViewportHeight
+                                )
+
+                                .putFloat(
+                                    "cropCssDocumentWidth_$appWidgetId",
+                                    jsDocumentWidth
+                                )
+
+                                .putFloat(
+                                    "cropCssDocumentHeight_$appWidgetId",
+                                    jsDocumentHeight
+                                )
+
+                                /*
+                                 * Android WebView-størrelse.
+                                 */
+                                .putInt(
+                                    "cropViewportWidth_$appWidgetId",
+                                    webView.width
+                                        .coerceAtLeast(1)
+                                )
+
+                                .putInt(
+                                    "cropViewportHeight_$appWidgetId",
+                                    webView.height
+                                        .coerceAtLeast(1)
+                                )
+
+                                /*
+                                 * Behold scale.
+                                 */
+                                .putFloat(
+                                    "cropWebScale_$appWidgetId",
+                                    webScale
+                                )
+
+                                /*
+                                 * Behold rammens pixelstørrelse.
+                                 */
+                                .putInt(
+                                    "cropSelectionWidth_$appWidgetId",
+                                    frameOverlay.width
+                                        .coerceAtLeast(1)
+                                )
+
+                                .putInt(
+                                    "cropSelectionHeight_$appWidgetId",
+                                    frameOverlay.height
+                                        .coerceAtLeast(1)
+                                )
+
+                                /*
+                                 * Behold Android-scrollværdierne
+                                 * KUN til at gendanne vælgerens
+                                 * position næste gang.
+                                 */
+                                .putInt(
+                                    "websiteScrollX_$appWidgetId",
+                                    webView.scrollX
+                                )
+
+                                .putInt(
+                                    "websiteScrollY_$appWidgetId",
+                                    webView.scrollY
+                                )
+
+                                .putFloat(
+                                    "cropFrameX_$appWidgetId",
+                                    frameOverlay.x
+                                )
+
+                                .putFloat(
+                                    "cropFrameY_$appWidgetId",
+                                    frameOverlay.y
+                                )
+
+                                .putBoolean(
+                                    "cropEnabled_$appWidgetId",
+                                    true
+                                )
+
+                                .apply()
+
+                            Toast.makeText(
+                                this@CropWebsiteActivity,
+                                "Området er gemt",
+                                Toast.LENGTH_SHORT
+                            ).show()
+
+                            finish()
+
+                        } catch (_: Exception) {
+
+                            Toast.makeText(
+                                this@CropWebsiteActivity,
+                                "Kunne ikke gemme området.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
                 }
             }
         )
@@ -685,6 +796,10 @@ class CropWebsiteActivity : Activity() {
                     url: String?
                 ) {
 
+                    /*
+                     * Gendan kun område-vælgerens
+                     * tidligere visuelle position.
+                     */
                     val oldScrollX =
                         prefs.getInt(
                             "websiteScrollX_$appWidgetId",
