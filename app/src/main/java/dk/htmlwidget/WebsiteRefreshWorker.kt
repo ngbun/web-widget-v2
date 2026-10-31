@@ -341,7 +341,8 @@ val cropScale =
 
                             try {
 
-                                if (cropEnabled) {
+                                /*
+if (cropEnabled) {
 
     val scrollX =
         (cropXRatio * web!!.width)
@@ -356,6 +357,7 @@ val cropScale =
         scrollY
     )
 }
+*/
 
                                 val bitmap =
                                     Bitmap.createBitmap(
