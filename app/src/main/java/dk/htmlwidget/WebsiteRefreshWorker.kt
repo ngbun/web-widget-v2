@@ -366,11 +366,11 @@ if (cropEnabled) {
 */
 
                                 val bitmap =
-                                    Bitmap.createBitmap(
-                                        width,
-                                        height,
-                                        Bitmap.Config.ARGB_8888
-                                    )
+    Bitmap.createBitmap(
+        renderWidth,
+        renderHeight,
+        Bitmap.Config.ARGB_8888
+    )
 
                                 val canvas =
                                     Canvas(bitmap)
