@@ -377,6 +377,39 @@ if (cropEnabled) {
 
                                 web!!.draw(canvas)
 
+                                val finalBitmap =
+    if (cropEnabled) {
+
+        val maxX =
+            (renderWidth - width)
+                .coerceAtLeast(0)
+
+        val maxY =
+            (renderHeight - height)
+                .coerceAtLeast(0)
+
+        val cropX =
+            (cropXRatio * maxX)
+                .roundToInt()
+                .coerceIn(0, maxX)
+
+        val cropY =
+            (cropYRatio * maxY)
+                .roundToInt()
+                .coerceIn(0, maxY)
+
+        Bitmap.createBitmap(
+            bitmap,
+            cropX,
+            cropY,
+            width,
+            height
+        )
+
+    } else {
+        bitmap
+    }
+
                                 val views =
                                     RemoteViews(
                                         context.packageName,
@@ -384,9 +417,9 @@ if (cropEnabled) {
                                     )
 
                                 views.setImageViewBitmap(
-                                    R.id.widget_image,
-                                    bitmap
-                                )
+    R.id.widget_image,
+    finalBitmap
+)
 
                                 manager.updateAppWidget(
                                     appWidgetId,
