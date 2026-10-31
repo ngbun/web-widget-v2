@@ -119,22 +119,16 @@ val cropEnabled =
         false
     )
 
-val cropXRatio =
-    prefs.getFloat(
-        "cropXRatio_$appWidgetId",
-        0f
+val cropScrollX =
+    prefs.getInt(
+        "cropScrollX_$appWidgetId",
+        0
     )
 
-val cropYRatio =
-    prefs.getFloat(
-        "cropYRatio_$appWidgetId",
-        0f
-    )
-
-val cropScale =
-    prefs.getFloat(
-        "cropScale_$appWidgetId",
-        1f
+val cropScrollY =
+    prefs.getInt(
+        "cropScrollY_$appWidgetId",
+        0
     )
         
         val manager =
@@ -170,11 +164,8 @@ val cropScale =
         val surfaceTexture =
             SurfaceTexture(0)
 
-        val renderWidth =
-    if (cropEnabled) width * 3 else width
-
-val renderHeight =
-    if (cropEnabled) height * 3 else height
+     val renderWidth = width
+val renderHeight = height
 
 surfaceTexture.setDefaultBufferSize(
     renderWidth,
@@ -387,51 +378,89 @@ surfaceTexture.setDefaultBufferSize(
                                 val finalBitmap =
     if (cropEnabled) {
 
-        val maxX =
-            (renderWidth - width)
-                .coerceAtLeast(0)
+    web!!.evaluateJavascript(
+        """
+        window.scrollTo(
+            $cropScrollX,
+            $cropScrollY
+        );
+        """.trimIndent()
+    ) {
 
-        val maxY =
-            (renderHeight - height)
-                .coerceAtLeast(0)
+        mainHandler.postDelayed({
 
-        val cropX =
-            (cropXRatio * maxX)
-                .roundToInt()
-                .coerceIn(0, maxX)
+            if (completed) {
+                return@postDelayed
+            }
 
-        val cropY =
-            (cropYRatio * maxY)
-                .roundToInt()
-                .coerceIn(0, maxY)
+            try {
 
-        Bitmap.createBitmap(
-            bitmap,
-            cropX,
-            cropY,
-            width,
-            height
-        )
+                val bitmap =
+                    Bitmap.createBitmap(
+                        width,
+                        height,
+                        Bitmap.Config.ARGB_8888
+                    )
 
-    } else {
-        bitmap
+                val canvas =
+                    Canvas(bitmap)
+
+                web!!.draw(canvas)
+
+                val views =
+                    RemoteViews(
+                        context.packageName,
+                        R.layout.widget_layout
+                    )
+
+                views.setImageViewBitmap(
+                    R.id.widget_image,
+                    bitmap
+                )
+
+                manager.updateAppWidget(
+                    appWidgetId,
+                    views
+                )
+
+            } catch (_: Exception) {
+            } finally {
+                cleanup()
+            }
+
+        }, 500)
     }
 
-                                val views =
-                                    RemoteViews(
-                                        context.packageName,
-                                        R.layout.widget_layout
-                                    )
+    return@postDelayed
+}
 
-                                views.setImageViewBitmap(
+val bitmap =
+    Bitmap.createBitmap(
+        width,
+        height,
+        Bitmap.Config.ARGB_8888
+    )
+
+val canvas =
+    Canvas(bitmap)
+
+web!!.draw(canvas)
+
+val views =
+    RemoteViews(
+        context.packageName,
+        R.layout.widget_layout
+    )
+
+views.setImageViewBitmap(
     R.id.widget_image,
-    finalBitmap
+    bitmap
 )
 
-                                manager.updateAppWidget(
-                                    appWidgetId,
-                                    views
-                                )
+manager.updateAppWidget(
+    appWidgetId,
+    views
+)
 
                             } catch (_: Exception) {
                             } finally {
