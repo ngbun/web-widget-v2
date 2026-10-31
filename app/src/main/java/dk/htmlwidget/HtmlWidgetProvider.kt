@@ -118,6 +118,44 @@ override fun onDeleted(
 
             ids.forEach { id ->
 
+val clickIntent =
+    Intent(
+        context,
+        HtmlWidgetProvider::class.java
+    ).apply {
+        action = "dk.htmlwidget.REFRESH_NOW"
+
+        putExtra(
+            AppWidgetManager.EXTRA_APPWIDGET_ID,
+            id
+        )
+    }
+
+val clickPendingIntent =
+    PendingIntent.getBroadcast(
+        context,
+        id,
+        clickIntent,
+        PendingIntent.FLAG_UPDATE_CURRENT or
+        PendingIntent.FLAG_IMMUTABLE
+    )
+
+val clickViews =
+    RemoteViews(
+        context.packageName,
+        R.layout.widget_layout
+    )
+
+clickViews.setOnClickPendingIntent(
+    R.id.widget_image,
+    clickPendingIntent
+)
+
+manager.updateAppWidget(
+    id,
+    clickViews
+)
+                
                 val website =
                     prefs.getString(
                         "url_$id",
