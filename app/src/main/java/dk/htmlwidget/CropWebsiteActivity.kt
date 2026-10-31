@@ -36,10 +36,7 @@ class CropWebsiteActivity : Activity() {
                 AppWidgetManager.INVALID_APPWIDGET_ID
             )
 
-        if (
-            appWidgetId ==
-            AppWidgetManager.INVALID_APPWIDGET_ID
-        ) {
+        if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
             finish()
             return
         }
@@ -63,7 +60,6 @@ class CropWebsiteActivity : Activity() {
                 !address.startsWith("http://")
             )
         ) {
-
             Toast.makeText(
                 this,
                 "Der er ikke gemt en gyldig hjemmeside.",
@@ -78,31 +74,63 @@ class CropWebsiteActivity : Activity() {
             AppWidgetManager.getInstance(this)
 
         val options =
-            manager.getAppWidgetOptions(
-                appWidgetId
-            )
+            manager.getAppWidgetOptions(appWidgetId)
 
         val density =
             resources.displayMetrics.density
 
+        /*
+         * Widgettens aktuelle størrelse.
+         *
+         * Vi bruger både MIN og MAX og tager
+         * den største gyldige værdi.
+         */
+        val minWidthDp =
+            options.getInt(
+                AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
+                300
+            )
+
+        val maxWidthDp =
+            options.getInt(
+                AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH,
+                minWidthDp
+            )
+
+        val minHeightDp =
+            options.getInt(
+                AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,
+                180
+            )
+
+        val maxHeightDp =
+            options.getInt(
+                AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT,
+                minHeightDp
+            )
+
         val widgetWidth =
             (
-                options.getInt(
-                    AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
-                    300
+                maxOf(
+                    minWidthDp,
+                    maxWidthDp
                 ) * density
             ).roundToInt()
                 .coerceAtLeast(1)
 
         val widgetHeight =
             (
-                options.getInt(
-                    AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,
-                    180
+                maxOf(
+                    minHeightDp,
+                    maxHeightDp
                 ) * density
             ).roundToInt()
                 .coerceAtLeast(1)
 
+        /*
+         * Dette forhold skal den røde ramme
+         * altid beholde.
+         */
         val widgetRatio =
             widgetHeight.toFloat() /
                 widgetWidth.toFloat()
@@ -113,22 +141,18 @@ class CropWebsiteActivity : Activity() {
                 orientation =
                     LinearLayout.VERTICAL
 
-                setBackgroundColor(
-                    Color.WHITE
-                )
+                setBackgroundColor(Color.WHITE)
             }
 
         root.addView(
             TextView(this).apply {
 
                 text =
-                    "Scroll på hjemmesiden. Træk den røde ramme til det område, der skal vises i widgetten."
+                    "Scroll på hjemmesiden. Flyt den røde ramme eller træk i et af de 4 hjørner for at ændre størrelsen."
 
                 textSize = 16f
 
-                setTextColor(
-                    Color.BLACK
-                )
+                setTextColor(Color.BLACK)
 
                 setPadding(
                     30,
@@ -154,19 +178,14 @@ class CropWebsiteActivity : Activity() {
         webView =
             WebView(this).apply {
 
-                setBackgroundColor(
-                    Color.WHITE
-                )
+                setBackgroundColor(Color.WHITE)
 
                 settings.apply {
-
                     javaScriptEnabled = true
                     domStorageEnabled = true
                     loadsImagesAutomatically = true
-
                     useWideViewPort = true
                     loadWithOverviewMode = false
-
                     builtInZoomControls = false
                     displayZoomControls = false
                 }
@@ -186,13 +205,28 @@ class CropWebsiteActivity : Activity() {
             )
         )
 
+        /*
+         * Container til selve rammen + de fire
+         * håndtag.
+         */
+        val frameContainer =
+            FrameLayout(this).apply {
+                elevation = 20f
+            }
+
+        websiteContainer.addView(
+            frameContainer,
+            FrameLayout.LayoutParams(1, 1)
+        )
+
+        /*
+         * Selve den røde ramme.
+         */
         val frameOverlay =
             View(this).apply {
 
                 isClickable = true
                 isFocusable = true
-
-                elevation = 20f
 
                 background =
                     GradientDrawable().apply {
@@ -213,13 +247,230 @@ class CropWebsiteActivity : Activity() {
                     }
             }
 
-        websiteContainer.addView(
+        frameContainer.addView(
             frameOverlay,
             FrameLayout.LayoutParams(
-                1,
-                1
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
             )
         )
+
+        /*
+         * Hjørnehåndtag.
+         */
+        val handleSize =
+            (28f * density)
+                .roundToInt()
+                .coerceAtLeast(28)
+
+        fun createHandle(): View {
+
+            return View(this).apply {
+
+                elevation = 30f
+
+                background =
+                    GradientDrawable().apply {
+
+                        shape =
+                            GradientDrawable.OVAL
+
+                        setColor(Color.WHITE)
+
+                        setStroke(
+                            (3f * density)
+                                .roundToInt()
+                                .coerceAtLeast(3),
+                            Color.RED
+                        )
+                    }
+            }
+        }
+
+        val topLeft =
+            createHandle()
+
+        val topRight =
+            createHandle()
+
+        val bottomLeft =
+            createHandle()
+
+        val bottomRight =
+            createHandle()
+
+        websiteContainer.addView(
+            topLeft,
+            FrameLayout.LayoutParams(
+                handleSize,
+                handleSize
+            )
+        )
+
+        websiteContainer.addView(
+            topRight,
+            FrameLayout.LayoutParams(
+                handleSize,
+                handleSize
+            )
+        )
+
+        websiteContainer.addView(
+            bottomLeft,
+            FrameLayout.LayoutParams(
+                handleSize,
+                handleSize
+            )
+        )
+
+        websiteContainer.addView(
+            bottomRight,
+            FrameLayout.LayoutParams(
+                handleSize,
+                handleSize
+            )
+        )
+
+        /*
+         * Flyt håndtagene med rammen.
+         */
+        fun updateHandles() {
+
+            val half =
+                handleSize / 2f
+
+            topLeft.x =
+                frameContainer.x - half
+
+            topLeft.y =
+                frameContainer.y - half
+
+            topRight.x =
+                frameContainer.x +
+                    frameContainer.width -
+                    half
+
+            topRight.y =
+                frameContainer.y - half
+
+            bottomLeft.x =
+                frameContainer.x - half
+
+            bottomLeft.y =
+                frameContainer.y +
+                    frameContainer.height -
+                    half
+
+            bottomRight.x =
+                frameContainer.x +
+                    frameContainer.width -
+                    half
+
+            bottomRight.y =
+                frameContainer.y +
+                    frameContainer.height -
+                    half
+        }
+
+        /*
+         * Opdater rammens position og størrelse.
+         */
+        fun setFrame(
+            x: Float,
+            y: Float,
+            width: Int
+        ) {
+
+            val containerWidth =
+                websiteContainer.width
+                    .coerceAtLeast(1)
+
+            val containerHeight =
+                websiteContainer.height
+                    .coerceAtLeast(1)
+
+            val minWidth =
+                (100f * density)
+                    .roundToInt()
+                    .coerceAtLeast(80)
+
+            var newWidth =
+                width.coerceAtLeast(minWidth)
+
+            var newHeight =
+                (
+                    newWidth *
+                        widgetRatio
+                ).roundToInt()
+                    .coerceAtLeast(1)
+
+            /*
+             * Rammen må ikke blive større
+             * end skærmområdet.
+             */
+            if (newWidth > containerWidth) {
+
+                newWidth =
+                    containerWidth
+
+                newHeight =
+                    (
+                        newWidth *
+                            widgetRatio
+                    ).roundToInt()
+            }
+
+            if (newHeight > containerHeight) {
+
+                newHeight =
+                    containerHeight
+
+                newWidth =
+                    (
+                        newHeight /
+                            widgetRatio
+                    ).roundToInt()
+            }
+
+            val maxX =
+                (
+                    containerWidth -
+                        newWidth
+                ).coerceAtLeast(0)
+                    .toFloat()
+
+            val maxY =
+                (
+                    containerHeight -
+                        newHeight
+                ).coerceAtLeast(0)
+                    .toFloat()
+
+            frameX =
+                x.coerceIn(
+                    0f,
+                    maxX
+                )
+
+            frameY =
+                y.coerceIn(
+                    0f,
+                    maxY
+                )
+
+            frameContainer.layoutParams =
+                FrameLayout.LayoutParams(
+                    newWidth,
+                    newHeight
+                )
+
+            frameContainer.x = frameX
+            frameContainer.y = frameY
+
+            frameContainer.post {
+                updateHandles()
+            }
+        }
 
         websiteContainer.post {
 
@@ -231,41 +482,40 @@ class CropWebsiteActivity : Activity() {
                 websiteContainer.height
                     .coerceAtLeast(1)
 
+            /*
+             * Hvis brugeren tidligere har ændret
+             * størrelsen, bruger vi den igen.
+             */
             var frameWidth =
-                (availableWidth * 0.70f)
-                    .roundToInt()
-                    .coerceAtLeast(1)
+                prefs.getInt(
+                    "cropFrameWidth_$appWidgetId",
+                    0
+                )
+
+            if (frameWidth <= 0) {
+                frameWidth =
+                    (availableWidth * 0.70f)
+                        .roundToInt()
+            }
 
             var frameHeight =
                 (
                     frameWidth *
                         widgetRatio
                 ).roundToInt()
-                    .coerceAtLeast(1)
 
-            val maxFrameHeight =
-                (availableHeight * 0.70f)
-                    .roundToInt()
-                    .coerceAtLeast(1)
-
-            if (frameHeight > maxFrameHeight) {
+            if (frameHeight > availableHeight * 0.75f) {
 
                 frameHeight =
-                    maxFrameHeight
+                    (availableHeight * 0.75f)
+                        .roundToInt()
 
                 frameWidth =
                     (
                         frameHeight /
                             widgetRatio
                     ).roundToInt()
-                        .coerceAtLeast(1)
             }
-
-            frameOverlay.layoutParams =
-                FrameLayout.LayoutParams(
-                    frameWidth,
-                    frameHeight
-                )
 
             val savedFrameX =
                 prefs.getFloat(
@@ -279,52 +529,47 @@ class CropWebsiteActivity : Activity() {
                     -1f
                 )
 
-            val maxX =
-                (
-                    availableWidth -
-                        frameWidth
-                ).coerceAtLeast(0)
-                    .toFloat()
+            val startX =
+                if (savedFrameX >= 0f) {
 
-            val maxY =
-                (
-                    availableHeight -
-                        frameHeight
-                ).coerceAtLeast(0)
-                    .toFloat()
+                    savedFrameX
 
-            if (
-                savedFrameX >= 0f &&
-                savedFrameY >= 0f
-            ) {
+                } else {
 
-                frameX =
-                    savedFrameX.coerceIn(
-                        0f,
-                        maxX
-                    )
+                    (
+                        availableWidth -
+                            frameWidth
+                    ) / 2f
+                }
 
-                frameY =
-                    savedFrameY.coerceIn(
-                        0f,
-                        maxY
-                    )
+            val startY =
+                if (savedFrameY >= 0f) {
 
-            } else {
+                    savedFrameY
 
-                frameX =
-                    maxX / 2f
+                } else {
 
-                frameY =
-                    maxY / 2f
-            }
+                    (
+                        availableHeight -
+                            frameHeight
+                    ) / 2f
+                }
 
-            frameOverlay.x = frameX
-            frameOverlay.y = frameY
+            setFrame(
+                startX,
+                startY,
+                frameWidth
+            )
         }
 
-        var touchOffsetX = 0f
-        var touchOffsetY = 0f
+        /*
+         * Flyt hele rammen ved at trække
+         * inde i den.
+         */
+        var moveStartRawX = 0f
+        var moveStartRawY = 0f
+        var moveStartX = 0f
+        var moveStartY = 0f
 
         frameOverlay.setOnTouchListener {
                 view,
@@ -334,15 +579,19 @@ class CropWebsiteActivity : Activity() {
 
                 MotionEvent.ACTION_DOWN -> {
 
-                    touchOffsetX =
-                        event.rawX -
-                            view.x
+                    moveStartRawX =
+                        event.rawX
 
-                    touchOffsetY =
-                        event.rawY -
-                            view.y
+                    moveStartRawY =
+                        event.rawY
 
-                    view.parent
+                    moveStartX =
+                        frameContainer.x
+
+                    moveStartY =
+                        frameContainer.y
+
+                    view.parent.parent
                         .requestDisallowInterceptTouchEvent(
                             true
                         )
@@ -352,59 +601,33 @@ class CropWebsiteActivity : Activity() {
 
                 MotionEvent.ACTION_MOVE -> {
 
-                    val maxX =
-                        (
-                            websiteContainer.width -
-                                view.width
-                        ).coerceAtLeast(0)
-                            .toFloat()
+                    val newX =
+                        moveStartX +
+                            (
+                                event.rawX -
+                                    moveStartRawX
+                            )
 
-                    val maxY =
-                        (
-                            websiteContainer.height -
-                                view.height
-                        ).coerceAtLeast(0)
-                            .toFloat()
+                    val newY =
+                        moveStartY +
+                            (
+                                event.rawY -
+                                    moveStartRawY
+                            )
 
-                    frameX =
-                        (
-                            event.rawX -
-                                touchOffsetX
-                        ).coerceIn(
-                            0f,
-                            maxX
-                        )
-
-                    frameY =
-                        (
-                            event.rawY -
-                                touchOffsetY
-                        ).coerceIn(
-                            0f,
-                            maxY
-                        )
-
-                    view.x = frameX
-                    view.y = frameY
+                    setFrame(
+                        newX,
+                        newY,
+                        frameContainer.width
+                    )
 
                     true
                 }
 
-                MotionEvent.ACTION_UP -> {
-
-                    view.parent
-                        .requestDisallowInterceptTouchEvent(
-                            false
-                        )
-
-                    view.performClick()
-
-                    true
-                }
-
+                MotionEvent.ACTION_UP,
                 MotionEvent.ACTION_CANCEL -> {
 
-                    view.parent
+                    view.parent.parent
                         .requestDisallowInterceptTouchEvent(
                             false
                         )
@@ -416,9 +639,227 @@ class CropWebsiteActivity : Activity() {
             }
         }
 
-        frameOverlay.setOnClickListener {
-            // Intet ved almindeligt klik.
+        /*
+         * De fire hjørner.
+         *
+         * Modsatte hjørne holdes fast, og
+         * widgettens proportion bevares.
+         */
+        fun installResizeHandle(
+            handle: View,
+            corner: Int
+        ) {
+
+            var anchorX = 0f
+            var anchorY = 0f
+
+            handle.setOnTouchListener {
+                    view,
+                    event ->
+
+                when (event.actionMasked) {
+
+                    MotionEvent.ACTION_DOWN -> {
+
+                        when (corner) {
+
+                            0 -> {
+                                // Top venstre.
+                                anchorX =
+                                    frameContainer.x +
+                                        frameContainer.width
+
+                                anchorY =
+                                    frameContainer.y +
+                                        frameContainer.height
+                            }
+
+                            1 -> {
+                                // Top højre.
+                                anchorX =
+                                    frameContainer.x
+
+                                anchorY =
+                                    frameContainer.y +
+                                        frameContainer.height
+                            }
+
+                            2 -> {
+                                // Bund venstre.
+                                anchorX =
+                                    frameContainer.x +
+                                        frameContainer.width
+
+                                anchorY =
+                                    frameContainer.y
+                            }
+
+                            else -> {
+                                // Bund højre.
+                                anchorX =
+                                    frameContainer.x
+
+                                anchorY =
+                                    frameContainer.y
+                            }
+                        }
+
+                        view.parent
+                            .requestDisallowInterceptTouchEvent(
+                                true
+                            )
+
+                        true
+                    }
+
+                    MotionEvent.ACTION_MOVE -> {
+
+                        val location =
+                            IntArray(2)
+
+                        websiteContainer
+                            .getLocationOnScreen(location)
+
+                        val touchX =
+                            event.rawX -
+                                location[0]
+
+                        val touchY =
+                            event.rawY -
+                                location[1]
+
+                        /*
+                         * Beregn ønsket bredde ud
+                         * fra både X og Y.
+                         */
+                        val widthFromX =
+                            when (corner) {
+
+                                0, 2 ->
+                                    anchorX -
+                                        touchX
+
+                                else ->
+                                    touchX -
+                                        anchorX
+                            }
+
+                        val heightFromY =
+                            when (corner) {
+
+                                0, 1 ->
+                                    anchorY -
+                                        touchY
+
+                                else ->
+                                    touchY -
+                                        anchorY
+                            }
+
+                        val widthFromY =
+                            heightFromY /
+                                widgetRatio
+
+                        /*
+                         * Brug den største bevægelse,
+                         * så resize føles naturlig.
+                         */
+                        val requestedWidth =
+                            if (
+                                kotlin.math.abs(
+                                    widthFromX -
+                                        frameContainer.width
+                                ) >=
+                                kotlin.math.abs(
+                                    widthFromY -
+                                        frameContainer.width
+                                )
+                            ) {
+                                widthFromX
+                            } else {
+                                widthFromY
+                            }
+
+                        val newWidth =
+                            requestedWidth
+                                .roundToInt()
+                                .coerceAtLeast(
+                                    (100f * density)
+                                        .roundToInt()
+                                )
+
+                        val newHeight =
+                            (
+                                newWidth *
+                                    widgetRatio
+                            ).roundToInt()
+
+                        val newX =
+                            when (corner) {
+
+                                0, 2 ->
+                                    anchorX -
+                                        newWidth
+
+                                else ->
+                                    anchorX
+                            }
+
+                        val newY =
+                            when (corner) {
+
+                                0, 1 ->
+                                    anchorY -
+                                        newHeight
+
+                                else ->
+                                    anchorY
+                            }
+
+                        setFrame(
+                            newX,
+                            newY,
+                            newWidth
+                        )
+
+                        true
+                    }
+
+                    MotionEvent.ACTION_UP,
+                    MotionEvent.ACTION_CANCEL -> {
+
+                        view.parent
+                            .requestDisallowInterceptTouchEvent(
+                                false
+                            )
+
+                        true
+                    }
+
+                    else -> false
+                }
+            }
         }
+
+        installResizeHandle(
+            topLeft,
+            0
+        )
+
+        installResizeHandle(
+            topRight,
+            1
+        )
+
+        installResizeHandle(
+            bottomLeft,
+            2
+        )
+
+        installResizeHandle(
+            bottomRight,
+            3
+        )
 
         root.addView(
             Button(this).apply {
@@ -429,11 +870,8 @@ class CropWebsiteActivity : Activity() {
                 setOnClickListener {
 
                     /*
-                     * Spørg SELVE hjemmesiden om
-                     * scrollposition og viewport.
-                     *
-                     * Alle disse værdier er i
-                     * browserens CSS-koordinater.
+                     * DEN FUNGERENDE CSS-METODE
+                     * BEHOLDES.
                      */
                     val javascript =
                         """
@@ -458,11 +896,6 @@ class CropWebsiteActivity : Activity() {
 
                         try {
 
-                            /*
-                             * evaluateJavascript returnerer
-                             * en JSON-string, derfor fjernes
-                             * citationstegn.
-                             */
                             val cleaned =
                                 result
                                     .trim()
@@ -522,17 +955,6 @@ class CropWebsiteActivity : Activity() {
                                     )
                                     ?: jsViewportHeight
 
-                            /*
-                             * Hvor mange Android-pixels
-                             * svarer til én CSS-pixel?
-                             *
-                             * Vi beregner den direkte ud
-                             * fra den faktiske WebView og
-                             * JS window.innerWidth.
-                             *
-                             * Dermed er vi ikke afhængige
-                             * af at gætte WebView.scale.
-                             */
                             val pixelsPerCssX =
                                 webView.width.toFloat() /
                                     jsViewportWidth
@@ -542,19 +964,18 @@ class CropWebsiteActivity : Activity() {
                                     jsViewportHeight
 
                             /*
-                             * Den røde rammes position er
-                             * Android-pixels.
-                             *
-                             * Konverter den til CSS-pixels
-                             * og læg hjemmesidens egen
-                             * scrollposition til.
+                             * VIGTIGT:
+                             * Nu bruges frameContainer,
+                             * fordi det er den ramme,
+                             * brugeren faktisk flytter
+                             * og ændrer størrelse på.
                              */
                             val frameCssX =
-                                frameOverlay.x /
+                                frameContainer.x /
                                     pixelsPerCssX
 
                             val frameCssY =
-                                frameOverlay.y /
+                                frameContainer.y /
                                     pixelsPerCssY
 
                             val cropCssX =
@@ -566,28 +987,19 @@ class CropWebsiteActivity : Activity() {
                                     frameCssY
 
                             val cropCssWidth =
-                                frameOverlay.width /
+                                frameContainer.width /
                                     pixelsPerCssX
 
                             val cropCssHeight =
-                                frameOverlay.height /
+                                frameContainer.height /
                                     pixelsPerCssY
 
-                            /*
-                             * Vi beholder også WebView.scale
-                             * som ekstra information, men de
-                             * nye CSS-værdier er nu vores
-                             * primære koordinater.
-                             */
                             val webScale =
                                 webView.scale
                                     .coerceAtLeast(0.01f)
 
                             prefs.edit()
 
-                                /*
-                                 * NYE præcise CSS-koordinater.
-                                 */
                                 .putFloat(
                                     "cropCssX_$appWidgetId",
                                     cropCssX
@@ -628,9 +1040,6 @@ class CropWebsiteActivity : Activity() {
                                     jsDocumentHeight
                                 )
 
-                                /*
-                                 * Android WebView-størrelse.
-                                 */
                                 .putInt(
                                     "cropViewportWidth_$appWidgetId",
                                     webView.width
@@ -643,34 +1052,37 @@ class CropWebsiteActivity : Activity() {
                                         .coerceAtLeast(1)
                                 )
 
-                                /*
-                                 * Behold scale.
-                                 */
                                 .putFloat(
                                     "cropWebScale_$appWidgetId",
                                     webScale
                                 )
 
-                                /*
-                                 * Behold rammens pixelstørrelse.
-                                 */
                                 .putInt(
                                     "cropSelectionWidth_$appWidgetId",
-                                    frameOverlay.width
+                                    frameContainer.width
                                         .coerceAtLeast(1)
                                 )
 
                                 .putInt(
                                     "cropSelectionHeight_$appWidgetId",
-                                    frameOverlay.height
+                                    frameContainer.height
                                         .coerceAtLeast(1)
                                 )
 
                                 /*
-                                 * Behold Android-scrollværdierne
-                                 * KUN til at gendanne vælgerens
-                                 * position næste gang.
+                                 * Gem også brugerens nye
+                                 * rammestørrelse.
                                  */
+                                .putInt(
+                                    "cropFrameWidth_$appWidgetId",
+                                    frameContainer.width
+                                )
+
+                                .putInt(
+                                    "cropFrameHeight_$appWidgetId",
+                                    frameContainer.height
+                                )
+
                                 .putInt(
                                     "websiteScrollX_$appWidgetId",
                                     webView.scrollX
@@ -683,12 +1095,12 @@ class CropWebsiteActivity : Activity() {
 
                                 .putFloat(
                                     "cropFrameX_$appWidgetId",
-                                    frameOverlay.x
+                                    frameContainer.x
                                 )
 
                                 .putFloat(
                                     "cropFrameY_$appWidgetId",
-                                    frameOverlay.y
+                                    frameContainer.y
                                 )
 
                                 .putBoolean(
@@ -719,9 +1131,7 @@ class CropWebsiteActivity : Activity() {
             }
         )
 
-        setContentView(
-            root
-        )
+        setContentView(root)
 
         webView.webViewClient =
             object : WebViewClient() {
@@ -769,9 +1179,7 @@ class CropWebsiteActivity : Activity() {
                         ).any {
 
                             host == it ||
-                                host.endsWith(
-                                    ".$it"
-                                )
+                                host.endsWith(".$it")
                         }
 
                     return if (blocked) {
@@ -796,10 +1204,6 @@ class CropWebsiteActivity : Activity() {
                     url: String?
                 ) {
 
-                    /*
-                     * Gendan kun område-vælgerens
-                     * tidligere visuelle position.
-                     */
                     val oldScrollX =
                         prefs.getInt(
                             "websiteScrollX_$appWidgetId",
@@ -829,18 +1233,14 @@ class CropWebsiteActivity : Activity() {
                 }
             }
 
-        webView.loadUrl(
-            address
-        )
+        webView.loadUrl(address)
     }
 
     override fun onDestroy() {
 
         try {
-
             webView.stopLoading()
             webView.destroy()
-
         } catch (_: Exception) {
         }
 
