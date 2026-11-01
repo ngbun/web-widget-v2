@@ -567,10 +567,16 @@ open class HtmlWidgetProvider :
                     )
 
                 clickViews
-                    .setOnClickPendingIntent(
-                        R.id.widget_image,
-                        clickPendingIntent
-                    )
+    .setOnClickPendingIntent(
+        R.id.widget_image,
+        clickPendingIntent
+    )
+
+clickViews
+    .setOnClickPendingIntent(
+        R.id.widget_refresh,
+        clickPendingIntent
+    )
 
                 manager.partiallyUpdateAppWidget(
                     id,
