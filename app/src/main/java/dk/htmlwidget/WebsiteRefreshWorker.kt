@@ -5,6 +5,8 @@ import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.SurfaceTexture
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
@@ -695,7 +697,8 @@ class WebsiteRefreshWorker(
 
             return crc.value
         }
-                fun drawWidget(
+
+        fun drawWidget(
             workerCssViewportWidth: Float,
             workerCssViewportHeight: Float
         ) {
@@ -746,8 +749,7 @@ class WebsiteRefreshWorker(
                             .coerceAtLeast(0)
 
                     } else {
-
-                        0
+                                                0
                     }
 
                 val drawY =
@@ -846,40 +848,114 @@ class WebsiteRefreshWorker(
                         selectedBitmap
                     }
 
-/*
- * ----------------------------------------
- * GEM PREVIEW-BILLEDE
- * ----------------------------------------
- *
- * Gemmer det samme færdige bitmap,
- * som bliver vist på widgetten.
- */
-try {
+                /*
+                 * ----------------------------------------
+                 * KANT DIREKTE PÅ WIDGET-BILLEDET
+                 * ----------------------------------------
+                 *
+                 * Ingen ekstra View i widget_layout.xml.
+                 *
+                 * Derfor undgår vi fejlen:
+                 * "Widget kan ikke vises".
+                 */
+                val showBorder =
+                    prefs.getBoolean(
+                        "showBorder_$appWidgetId",
+                        false
+                    )
 
-    val previewFile =
-        File(
-            context.filesDir,
-            "widget_$appWidgetId.png"
-        )
+                if (
+                    showBorder
+                ) {
 
-    FileOutputStream(
-        previewFile
-    ).use { output ->
+                    val borderCanvas =
+                        Canvas(
+                            finalBitmap
+                        )
 
-        finalBitmap.compress(
-            Bitmap.CompressFormat.PNG,
-            100,
-            output
-        )
-    }
+                    val borderWidth =
+                        (2f * density)
+                            .coerceAtLeast(1f)
 
-} catch (_: Exception) {
-    /*
-     * Preview må aldrig få selve
-     * widget-opdateringen til at fejle.
-     */
-}
-                    
+                    val borderInset =
+                        borderWidth / 2f
+
+                    val cornerRadius =
+                        18f * density
+
+                    val borderPaint =
+                        Paint(
+                            Paint.ANTI_ALIAS_FLAG
+                        ).apply {
+
+                            style =
+                                Paint.Style.STROKE
+
+                            strokeWidth =
+                                borderWidth
+
+                            color =
+                                android.graphics.Color.argb(
+                                    128,
+                                    0,
+                                    0,
+                                    0
+                                )
+                        }
+
+                    val borderRect =
+                        RectF(
+                            borderInset,
+                            borderInset,
+                            finalBitmap.width.toFloat() -
+                                borderInset,
+                            finalBitmap.height.toFloat() -
+                                borderInset
+                        )
+
+                    borderCanvas.drawRoundRect(
+                        borderRect,
+                        cornerRadius,
+                        cornerRadius,
+                        borderPaint
+                    )
+                }
+
+                /*
+                 * ----------------------------------------
+                 * GEM PREVIEW-BILLEDE
+                 * ----------------------------------------
+                 *
+                 * Gemmer det samme færdige bitmap,
+                 * som bliver vist på widgetten.
+                 */
+                try {
+
+                    val previewFile =
+                        File(
+                            context.filesDir,
+                            "widget_$appWidgetId.png"
+                        )
+
+                    FileOutputStream(
+                        previewFile
+                    ).use { output ->
+
+                        finalBitmap.compress(
+                            Bitmap.CompressFormat.PNG,
+                            100,
+                            output
+                        )
+                    }
+
+                } catch (_: Exception) {
+
+                    /*
+                     * Preview må aldrig få selve
+                     * widget-opdateringen til at fejle.
+                     */
+                }
+
                 /*
                  * ----------------------------------------
                  * CHECKSUM
