@@ -23,7 +23,7 @@
         android:layout_gravity="top|end"
         android:layout_margin="6dp"
         android:gravity="center"
-        android:background="#B3000000"
+        android:background="@drawable/widget_button_round"
         android:text="↻"
         android:textColor="#FFFFFF"
         android:textSize="20sp"
