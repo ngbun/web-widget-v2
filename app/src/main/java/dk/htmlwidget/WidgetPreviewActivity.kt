@@ -3,8 +3,12 @@ package dk.htmlwidget
 import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.graphics.BitmapFactory
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -21,27 +25,100 @@ class WidgetPreviewActivity : Activity() {
                 AppWidgetManager.INVALID_APPWIDGET_ID
             )
 
+        val prefs =
+            getSharedPreferences(
+                "settings",
+                MODE_PRIVATE
+            )
+
+        val widgetName =
+            if (
+                appWidgetId !=
+                AppWidgetManager.INVALID_APPWIDGET_ID
+            ) {
+                prefs.getString(
+                    "widgetName_$appWidgetId",
+                    ""
+                ).orEmpty()
+            } else {
+                ""
+            }
+
+        val roundedCorners =
+            if (
+                appWidgetId !=
+                AppWidgetManager.INVALID_APPWIDGET_ID
+            ) {
+                prefs.getBoolean(
+                    "roundedCorners_$appWidgetId",
+                    true
+                )
+            } else {
+                true
+            }
+
+        val showBorder =
+            if (
+                appWidgetId !=
+                AppWidgetManager.INVALID_APPWIDGET_ID
+            ) {
+                prefs.getBoolean(
+                    "showBorder_$appWidgetId",
+                    false
+                )
+            } else {
+                false
+            }
+
+        val showBackground =
+            if (
+                appWidgetId !=
+                AppWidgetManager.INVALID_APPWIDGET_ID
+            ) {
+                prefs.getBoolean(
+                    "showBackground_$appWidgetId",
+                    true
+                )
+            } else {
+                true
+            }
+
+        val density =
+            resources.displayMetrics.density
+
         val root =
             LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
+
+                orientation =
+                    LinearLayout.VERTICAL
 
                 setPadding(
-                    30,
-                    30,
-                    30,
-                    30
+                    (24 * density).toInt(),
+                    (24 * density).toInt(),
+                    (24 * density).toInt(),
+                    (24 * density).toInt()
                 )
             }
 
         root.addView(
             TextView(this).apply {
-                text = "Preview"
+
+                text =
+                    if (
+                        widgetName.isNotBlank()
+                    ) {
+                        "Preview · $widgetName"
+                    } else {
+                        "Preview"
+                    }
+
                 textSize = 26f
             }
         )
 
         root.addView(
             TextView(this).apply {
+
                 text =
                     "Sådan ser det senest gemte billede til widgetten ud."
 
@@ -49,21 +126,86 @@ class WidgetPreviewActivity : Activity() {
 
                 setPadding(
                     0,
-                    5,
+                    (5 * density).toInt(),
                     0,
-                    20
+                    (20 * density).toInt()
                 )
             }
         )
 
+        val previewContainer =
+            FrameLayout(this).apply {
+
+                val shape =
+                    GradientDrawable()
+
+                shape.shape =
+                    GradientDrawable.RECTANGLE
+
+                shape.cornerRadius =
+                    if (
+                        roundedCorners
+                    ) {
+                        18f * density
+                    } else {
+                        0f
+                    }
+
+                if (
+                    showBackground
+                ) {
+
+                    shape.setColor(
+                        Color.WHITE
+                    )
+
+                } else {
+
+                    shape.setColor(
+                        Color.TRANSPARENT
+                    )
+                }
+
+                if (
+                    showBorder
+                ) {
+
+                    shape.setStroke(
+                        (1 * density)
+                            .toInt()
+                            .coerceAtLeast(1),
+                        0x40000000
+                            .toInt()
+                    )
+                }
+
+                background =
+                    shape
+
+                if (
+                    roundedCorners
+                ) {
+                    clipToOutline = true
+                }
+            }
+
         val preview =
             ImageView(this).apply {
 
-                adjustViewBounds = true
-
                 scaleType =
-                    ImageView.ScaleType.FIT_CENTER
+                    ImageView.ScaleType.FIT_XY
+
+                adjustViewBounds =
+                    false
             }
+
+        previewContainer.addView(
+            preview,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        )
 
         val imageFile =
             File(
@@ -82,14 +224,16 @@ class WidgetPreviewActivity : Activity() {
                     imageFile.absolutePath
                 )
 
-            if (bitmap != null) {
+            if (
+                bitmap != null
+            ) {
 
                 preview.setImageBitmap(
                     bitmap
                 )
 
                 root.addView(
-                    preview,
+                    previewContainer,
                     LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         0,
@@ -126,7 +270,8 @@ class WidgetPreviewActivity : Activity() {
                 text =
                     "Der er endnu ikke et preview."
 
-                textSize = 18f
+                textSize =
+                    18f
 
                 gravity =
                     Gravity.CENTER
