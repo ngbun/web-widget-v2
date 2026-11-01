@@ -269,10 +269,16 @@ open class HtmlWidgetProvider :
                 "website-refresh-$id"
             )
 
-            prefs.edit()
+            /*
+             * Fjern almindelige widget-indstillinger.
+             */
+            val editor =
+                prefs.edit()
 
+            editor
                 .remove("url_$id")
                 .remove("localUri_$id")
+                .remove("widgetName_$id")
                 .remove("refreshMinutes_$id")
 
                 .remove(
@@ -281,6 +287,25 @@ open class HtmlWidgetProvider :
 
                 .remove(
                     "showUpdateStatus_$id"
+                )
+
+                .remove(
+                    "autoSwitchViews_$id"
+                )
+
+                /*
+                 * UDSEENDE
+                 */
+                .remove(
+                    "roundedCorners_$id"
+                )
+
+                .remove(
+                    "showBorder_$id"
+                )
+
+                .remove(
+                    "showBackground_$id"
                 )
 
                 .remove(
@@ -295,6 +320,17 @@ open class HtmlWidgetProvider :
                     "lastBitmapChecksum_$id"
                 )
 
+                .remove(
+                    "currentCropView_$id"
+                )
+
+                .remove(
+                    "cropViewCount_$id"
+                )
+
+                /*
+                 * CROP
+                 */
                 .remove(
                     "cropEnabled_$id"
                 )
@@ -459,7 +495,80 @@ open class HtmlWidgetProvider :
                     "cropScale_$id"
                 )
 
-                .apply()
+            /*
+             * Fjern alle gemte ekstra visninger.
+             *
+             * Vi går lidt højere end det aktuelle antal,
+             * så gamle rester også bliver fjernet.
+             */
+            for (
+                viewNumber in 1..50
+            ) {
+
+                editor
+                    .remove(
+                        "cropView_${viewNumber}_cropCssX_$id"
+                    )
+                    .remove(
+                        "cropView_${viewNumber}_cropCssY_$id"
+                    )
+                    .remove(
+                        "cropView_${viewNumber}_cropCssWidth_$id"
+                    )
+                    .remove(
+                        "cropView_${viewNumber}_cropCssHeight_$id"
+                    )
+                    .remove(
+                        "cropView_${viewNumber}_cropCssViewportWidth_$id"
+                    )
+                    .remove(
+                        "cropView_${viewNumber}_cropCssViewportHeight_$id"
+                    )
+                    .remove(
+                        "cropView_${viewNumber}_cropCssDocumentWidth_$id"
+                    )
+                    .remove(
+                        "cropView_${viewNumber}_cropCssDocumentHeight_$id"
+                    )
+                    .remove(
+                        "cropView_${viewNumber}_cropViewportWidth_$id"
+                    )
+                    .remove(
+                        "cropView_${viewNumber}_cropViewportHeight_$id"
+                    )
+                    .remove(
+                        "cropView_${viewNumber}_cropWebScale_$id"
+                    )
+                    .remove(
+                        "cropView_${viewNumber}_cropSelectionWidth_$id"
+                    )
+                    .remove(
+                        "cropView_${viewNumber}_cropSelectionHeight_$id"
+                    )
+                    .remove(
+                        "cropView_${viewNumber}_cropFrameWidth_$id"
+                    )
+                    .remove(
+                        "cropView_${viewNumber}_cropFrameHeight_$id"
+                    )
+                    .remove(
+                        "cropView_${viewNumber}_websiteScrollX_$id"
+                    )
+                    .remove(
+                        "cropView_${viewNumber}_websiteScrollY_$id"
+                    )
+                    .remove(
+                        "cropView_${viewNumber}_cropFrameX_$id"
+                    )
+                    .remove(
+                        "cropView_${viewNumber}_cropFrameY_$id"
+                    )
+                    .remove(
+                        "cropView_${viewNumber}_enabled_$id"
+                    )
+            }
+
+            editor.apply()
         }
     }
 
@@ -470,6 +579,79 @@ open class HtmlWidgetProvider :
 
         private const val ACTION_OPEN_WEBSITE =
             "dk.htmlwidget.OPEN_WEBSITE"
+
+        /*
+         * ----------------------------------------
+         * ANVEND WIDGET-UDSEENDE
+         * ----------------------------------------
+         */
+        private fun applyWidgetAppearance(
+            context: Context,
+            appWidgetId: Int,
+            views: RemoteViews
+        ) {
+
+            val prefs =
+                context.getSharedPreferences(
+                    "settings",
+                    Context.MODE_PRIVATE
+                )
+
+            val roundedCorners =
+                prefs.getBoolean(
+                    "roundedCorners_$appWidgetId",
+                    true
+                )
+
+            val showBorder =
+                prefs.getBoolean(
+                    "showBorder_$appWidgetId",
+                    false
+                )
+
+            val showBackground =
+                prefs.getBoolean(
+                    "showBackground_$appWidgetId",
+                    true
+                )
+
+            /*
+             * Vælg drawable.
+             *
+             * De drawables vi allerede har:
+             *
+             * widget_background_rounded
+             * widget_background_rounded_border
+             *
+             * Når baggrund er slået fra,
+             * fjernes baggrunden helt.
+             */
+            val backgroundResource =
+                when {
+
+                    !showBackground ->
+                        0
+
+                    roundedCorners &&
+                        showBorder ->
+                        R.drawable.widget_background_rounded_border
+
+                    roundedCorners ->
+                        R.drawable.widget_background_rounded
+
+                    showBorder ->
+                        R.drawable.widget_background_rounded_border
+
+                    else ->
+                        0
+                }
+
+            views.setInt(
+                R.id.widget_root,
+                "setBackgroundResource",
+                backgroundResource
+            )
+        }
 
         /*
          * ----------------------------------------
@@ -493,7 +675,9 @@ open class HtmlWidgetProvider :
                     true
                 )
 
-            if (!showStatus) {
+            if (
+                !showStatus
+            ) {
                 return
             }
 
@@ -502,6 +686,12 @@ open class HtmlWidgetProvider :
                     context.packageName,
                     R.layout.widget_layout
                 )
+
+            applyWidgetAppearance(
+                context,
+                appWidgetId,
+                views
+            )
 
             views.setTextViewText(
                 R.id.widget_status,
@@ -514,7 +704,9 @@ open class HtmlWidgetProvider :
             )
 
             AppWidgetManager
-                .getInstance(context)
+                .getInstance(
+                    context
+                )
                 .partiallyUpdateAppWidget(
                     appWidgetId,
                     views
@@ -537,13 +729,21 @@ open class HtmlWidgetProvider :
                     R.layout.widget_layout
                 )
 
+            applyWidgetAppearance(
+                context,
+                appWidgetId,
+                views
+            )
+
             views.setViewVisibility(
                 R.id.widget_status,
                 View.GONE
             )
 
             AppWidgetManager
-                .getInstance(context)
+                .getInstance(
+                    context
+                )
                 .partiallyUpdateAppWidget(
                     appWidgetId,
                     views
@@ -639,6 +839,16 @@ open class HtmlWidgetProvider :
                         context.packageName,
                         R.layout.widget_layout
                     )
+
+                /*
+                 * Anvend udseendet for netop
+                 * denne widget.
+                 */
+                applyWidgetAppearance(
+                    context,
+                    id,
+                    clickViews
+                )
 
                 clickViews
                     .setOnClickPendingIntent(
