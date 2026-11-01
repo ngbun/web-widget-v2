@@ -23,6 +23,7 @@ class SetupActivity : Activity() {
 
     private var localUri: Uri? = null
 
+    private lateinit var widgetName: EditText
     private lateinit var url: EditText
     private lateinit var adBlock: CheckBox
     private lateinit var hideCookieBanners: CheckBox
@@ -102,6 +103,28 @@ class SetupActivity : Activity() {
 
                 textSize = 16f
             }
+        )
+
+        /*
+         * WIDGET-NAVN
+         */
+        widgetName =
+            EditText(this).apply {
+
+                hint = "Navn på widget, fx Elpris"
+
+                setText(
+                    prefs.getString(
+                        "widgetName_$appWidgetId",
+                        ""
+                    )
+                )
+
+                setSingleLine(true)
+            }
+
+        layout.addView(
+            widgetName
         )
 
         /*
@@ -529,12 +552,22 @@ class SetupActivity : Activity() {
      */
     private fun saveWidgetSettings() {
 
+        val widgetNameValue =
+            widgetName.text
+                .toString()
+                .trim()
+
         val website =
             url.text
                 .toString()
                 .trim()
 
         prefs.edit().apply {
+
+            putString(
+                "widgetName_$appWidgetId",
+                widgetNameValue
+            )
 
             if (
                 website.isNotEmpty()
@@ -889,6 +922,7 @@ class SetupActivity : Activity() {
             }
         }
 
+        putString("widgetName")
         putString("url")
         putString("localUri")
 
@@ -931,11 +965,11 @@ class SetupActivity : Activity() {
             "widget",
             widget
         )
+    
 
         return backup
     }
-
-    /*
+        /*
      * ----------------------------------------
      * SKRIV BACKUP
      * ----------------------------------------
@@ -1158,6 +1192,13 @@ class SetupActivity : Activity() {
             )
 
             /*
+             * Navn.
+             */
+            importString(
+                "widgetName"
+            )
+
+            /*
              * Adresse / lokal HTML.
              */
             importString(
@@ -1343,6 +1384,16 @@ class SetupActivity : Activity() {
      * ----------------------------------------
      */
     private fun updateUiAfterImport() {
+
+        val importedWidgetName =
+            prefs.getString(
+                "widgetName_$appWidgetId",
+                ""
+            ) ?: ""
+
+        widgetName.setText(
+            importedWidgetName
+        )
 
         val importedUrl =
             prefs.getString(
