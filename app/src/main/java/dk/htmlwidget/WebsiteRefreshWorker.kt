@@ -74,6 +74,14 @@ class WebsiteRefreshWorker(
                     !address.startsWith("http://")
                 )
         ) {
+
+            if (manualRefresh) {
+
+                showFailureStatus(
+                    appWidgetId
+                )
+            }
+
             return Result.success()
         }
 
@@ -99,14 +107,106 @@ class WebsiteRefreshWorker(
                 TimeUnit.SECONDS
             )
 
-        return if (
-            completed &&
-            successful
-        ) {
+        if (!completed) {
+
+            if (manualRefresh) {
+
+                mainHandler.post {
+
+                    showFailureStatus(
+                        appWidgetId
+                    )
+                }
+            }
+
+            return Result.retry()
+        }
+
+        return if (successful) {
+
             Result.success()
+
         } else {
+
+            if (manualRefresh) {
+
+                mainHandler.post {
+
+                    showFailureStatus(
+                        appWidgetId
+                    )
+                }
+            }
+
             Result.retry()
         }
+    }
+
+    /*
+     * ----------------------------------------
+     * FEJLSTATUS
+     * ----------------------------------------
+     *
+     * Ændrer KUN statusfeltet.
+     *
+     * Det sidste fungerende widgetbillede
+     * bliver stående.
+     */
+    private fun showFailureStatus(
+        appWidgetId: Int
+    ) {
+
+        if (
+            appWidgetId ==
+            AppWidgetManager.INVALID_APPWIDGET_ID
+        ) {
+            return
+        }
+
+        val context =
+            applicationContext
+
+        val prefs =
+            context.getSharedPreferences(
+                "settings",
+                Context.MODE_PRIVATE
+            )
+
+        val showStatus =
+            prefs.getBoolean(
+                "showUpdateStatus_$appWidgetId",
+                true
+            )
+
+        if (!showStatus) {
+            return
+        }
+
+        val manager =
+            AppWidgetManager.getInstance(
+                context
+            )
+
+        val views =
+            RemoteViews(
+                context.packageName,
+                R.layout.widget_layout
+            )
+
+        views.setTextViewText(
+            R.id.widget_status,
+            "Kunne ikke opdatere"
+        )
+
+        views.setViewVisibility(
+            R.id.widget_status,
+            View.VISIBLE
+        )
+
+        manager.partiallyUpdateAppWidget(
+            appWidgetId,
+            views
+        )
     }
 
     private fun renderWebsite(
@@ -205,9 +305,13 @@ class WebsiteRefreshWorker(
                 cropEnabled &&
                 savedViewportWidth > 0
             ) {
+
                 savedViewportWidth
+
             } else {
+
                 widgetWidth * 3
+
             }.coerceAtLeast(1)
 
         val renderHeight =
@@ -215,9 +319,13 @@ class WebsiteRefreshWorker(
                 cropEnabled &&
                 savedViewportHeight > 0
             ) {
+
                 savedViewportHeight
+
             } else {
+
                 widgetHeight * 3
+
             }.coerceAtLeast(1)
 
         val displayManager =
@@ -234,7 +342,9 @@ class WebsiteRefreshWorker(
         )
 
         val surface =
-            Surface(surfaceTexture)
+            Surface(
+                surfaceTexture
+            )
 
         var virtualDisplay: VirtualDisplay? =
             null
@@ -247,6 +357,13 @@ class WebsiteRefreshWorker(
 
         var completed = false
 
+        /*
+         * Denne værdi fortæller cleanup(),
+         * om vi rent faktisk nåede frem til
+         * et færdigt og gyldigt widgetbillede.
+         */
+        var renderSucceeded = false
+
         fun cleanup() {
 
             if (completed) {
@@ -256,29 +373,55 @@ class WebsiteRefreshWorker(
             completed = true
 
             try {
+
                 web?.stopLoading()
                 web?.destroy()
+
             } catch (_: Exception) {
             }
 
             try {
+
                 presentation?.dismiss()
+
             } catch (_: Exception) {
             }
 
             try {
+
                 virtualDisplay?.release()
+
             } catch (_: Exception) {
             }
 
             try {
+
                 surface.release()
+
             } catch (_: Exception) {
             }
 
             try {
+
                 surfaceTexture.release()
+
             } catch (_: Exception) {
+            }
+
+            /*
+             * Manuel fejl:
+             *
+             * Vi ændrer kun status.
+             * Det gamle billede bliver stående.
+             */
+            if (
+                manualRefresh &&
+                !renderSucceeded
+            ) {
+
+                showFailureStatus(
+                    appWidgetId
+                )
             }
 
             latch.countDown()
@@ -332,10 +475,6 @@ class WebsiteRefreshWorker(
 
         /*
          * Beregn checksum af det færdige billede.
-         *
-         * Hvis checksum er den samme som ved
-         * sidste rendering, behøver Android
-         * ikke modtage billedet igen.
          */
         fun bitmapChecksum(
             bitmap: Bitmap
@@ -402,12 +541,18 @@ class WebsiteRefreshWorker(
                 val currentWeb =
                     web
                         ?: run {
+
                             cleanup()
+
                             return
                         }
 
                 /*
-                 * Vores fungerende CSS mapping.
+                 * --------------------------------
+                 * FUNGERENDE CSS-MAPPING
+                 * --------------------------------
+                 *
+                 * ÆNDRES IKKE.
                  */
                 val pixelsPerCssX =
                     renderWidth.toFloat() /
@@ -481,9 +626,6 @@ class WebsiteRefreshWorker(
                         widgetHeight
                     }
 
-                /*
-                 * Tegn det valgte område.
-                 */
                 val selectedBitmap =
                     Bitmap.createBitmap(
                         captureWidth,
@@ -509,10 +651,6 @@ class WebsiteRefreshWorker(
 
                 canvas.restore()
 
-                /*
-                 * Tilpas det valgte område til
-                 * widgettens faktiske størrelse.
-                 */
                 val finalBitmap =
                     if (
                         captureWidth != widgetWidth ||
@@ -532,11 +670,7 @@ class WebsiteRefreshWorker(
                     }
 
                 /*
-                 * --------------------------------
-                 * NYT I FIL 8
-                 * --------------------------------
-                 *
-                 * Beregn checksum af billedet.
+                 * Checksum.
                  */
                 val newChecksum =
                     bitmapChecksum(
@@ -554,9 +688,8 @@ class WebsiteRefreshWorker(
                         oldChecksum
 
                 /*
-                 * Send KUN et nyt bitmap til
-                 * Android, hvis billedet faktisk
-                 * har ændret sig.
+                 * Send kun nyt billede til Android,
+                 * hvis indholdet har ændret sig.
                  */
                 if (imageChanged) {
 
@@ -578,26 +711,21 @@ class WebsiteRefreshWorker(
                 }
 
                 /*
-                 * Et vellykket render tæller som
-                 * en opdatering, også selv om
-                 * billedet var identisk.
+                 * Hvis vi er nået hertil,
+                 * er renderingen lykkedes.
                  */
+                renderSucceeded = true
+
                 val successfulUpdateTime =
                     System.currentTimeMillis()
 
                 prefs.edit()
 
-                    /*
-                     * Gem checksum til næste gang.
-                     */
                     .putLong(
                         "lastBitmapChecksum_$appWidgetId",
                         newChecksum
                     )
 
-                    /*
-                     * Debug/crop-data.
-                     */
                     .putInt(
                         "cropBitmapX_$appWidgetId",
                         drawX
@@ -635,21 +763,10 @@ class WebsiteRefreshWorker(
 
                     .apply()
 
-                /*
-                 * Ved manuel opdatering skifter
-                 * "Opdaterer…" til
-                 * "Opdateret HH:mm".
-                 *
-                 * Det sker også, hvis hjemmesiden
-                 * ikke havde ændret sig, fordi
-                 * kontrollen stadig lykkedes.
-                 */
                 showFinishedStatus()
 
                 /*
-                 * Frigiv den midlertidige bitmap,
-                 * hvis finalBitmap er en separat
-                 * skaleret bitmap.
+                 * Frigiv midlertidig bitmap.
                  */
                 if (
                     finalBitmap !==
@@ -667,11 +784,14 @@ class WebsiteRefreshWorker(
             } catch (_: Exception) {
 
                 /*
-                 * Ved fejl overskriver vi IKKE
-                 * widgetten.
+                 * FEJL:
                  *
-                 * Det sidste fungerende billede
-                 * bliver derfor stående.
+                 * Ingen updateAppWidget.
+                 * Ingen ny checksum.
+                 * Intet nyt success-tidspunkt.
+                 *
+                 * Det sidste gode billede
+                 * bliver stående.
                  */
 
             } finally {
@@ -684,12 +804,6 @@ class WebsiteRefreshWorker(
          * ----------------------------------------
          * COOKIE-BANNERE
          * ----------------------------------------
-         *
-         * Fjerner kendte cookie- og
-         * samtykke-bannere.
-         *
-         * Vi ændrer IKKE scroll eller
-         * CSS-koordinater.
          */
         fun hideCookieBanners(
             after: () -> Unit
@@ -698,7 +812,9 @@ class WebsiteRefreshWorker(
             val currentWeb =
                 web
                     ?: run {
+
                         cleanup()
+
                         return
                     }
 
@@ -781,17 +897,17 @@ class WebsiteRefreshWorker(
          * CSS VIEWPORT
          * ----------------------------------------
          *
-         * Dette er vores fungerende
-         * CSS-baserede crop-metode.
-         *
-         * Den ændrer vi IKKE.
+         * Vores fungerende crop-metode.
+         * ÆNDRES IKKE.
          */
         fun readWorkerCssViewport() {
 
             val currentWeb =
                 web
                     ?: run {
+
                         cleanup()
+
                         return
                     }
 
@@ -1033,6 +1149,10 @@ class WebsiteRefreshWorker(
 
             /*
              * Sikkerhedstimeout.
+             *
+             * Hvis vi når hertil uden et
+             * færdigt billede, vil cleanup()
+             * vise fejlstatus ved manuel refresh.
              */
             mainHandler.postDelayed({
 
