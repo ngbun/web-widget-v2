@@ -9,6 +9,7 @@ import android.widget.*
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 class SetupActivity : Activity() {
@@ -29,6 +30,12 @@ class SetupActivity : Activity() {
 
     private var appWidgetId =
         AppWidgetManager.INVALID_APPWIDGET_ID
+
+    /*
+     * Request codes.
+     */
+    private val chooseHtmlRequest = 42
+    private val exportBackupRequest = 43
 
     override fun onCreate(
         savedInstanceState: Bundle?
@@ -151,7 +158,9 @@ class SetupActivity : Activity() {
                             )
                         }
 
-                    startActivity(cropIntent)
+                    startActivity(
+                        cropIntent
+                    )
                 }
             }
         )
@@ -187,7 +196,7 @@ class SetupActivity : Activity() {
 
                     startActivityForResult(
                         fileIntent,
-                        42
+                        chooseHtmlRequest
                     )
                 }
             }
@@ -209,7 +218,9 @@ class SetupActivity : Activity() {
                     )
             }
 
-        layout.addView(adBlock)
+        layout.addView(
+            adBlock
+        )
 
         /*
          * COOKIE-BANNERE
@@ -318,6 +329,7 @@ class SetupActivity : Activity() {
 
         val refreshLabel =
             TextView(this).apply {
+
                 textSize = 16f
             }
 
@@ -392,8 +404,63 @@ class SetupActivity : Activity() {
 
         updateRefreshLabel()
 
-        layout.addView(refreshLabel)
-        layout.addView(refreshSlider)
+        layout.addView(
+            refreshLabel
+        )
+
+        layout.addView(
+            refreshSlider
+        )
+
+        /*
+         * ----------------------------------------
+         * BACKUP
+         * ----------------------------------------
+         */
+        layout.addView(
+            TextView(this).apply {
+
+                text = "Backup"
+                textSize = 20f
+
+                setPadding(
+                    0,
+                    30,
+                    0,
+                    5
+                )
+            }
+        )
+
+        layout.addView(
+            TextView(this).apply {
+
+                text =
+                    "Gem indstillingerne for denne widget som en backup-fil."
+
+                textSize = 13f
+
+                setPadding(
+                    0,
+                    0,
+                    0,
+                    10
+                )
+            }
+        )
+
+        layout.addView(
+            Button(this).apply {
+
+                text =
+                    "Eksporter backup"
+
+                setOnClickListener {
+
+                    exportBackup()
+                }
+            }
+        )
 
         /*
          * GEM
@@ -413,7 +480,9 @@ class SetupActivity : Activity() {
 
                     prefs.edit().apply {
 
-                        if (website.isNotEmpty()) {
+                        if (
+                            website.isNotEmpty()
+                        ) {
 
                             putString(
                                 "url_$appWidgetId",
@@ -455,8 +524,7 @@ class SetupActivity : Activity() {
                         )
 
                         /*
-                         * Beholder global værdi
-                         * for kompatibilitet.
+                         * Global kompatibilitetsværdi.
                          */
                         putBoolean(
                             "hideCookieBanners",
@@ -464,8 +532,7 @@ class SetupActivity : Activity() {
                         )
 
                         /*
-                         * Opdateringsstatus
-                         * gemmes pr. widget.
+                         * Opdateringsstatus.
                          */
                         putBoolean(
                             "showUpdateStatus_$appWidgetId",
@@ -560,14 +627,344 @@ class SetupActivity : Activity() {
 
             ScrollView(this).apply {
 
-                addView(layout)
+                addView(
+                    layout
+                )
             }
         )
     }
 
     /*
      * ----------------------------------------
-     * HTML-FIL VALGT
+     * EKSPORTER BACKUP
+     * ----------------------------------------
+     */
+    private fun exportBackup() {
+
+        if (
+            appWidgetId ==
+            AppWidgetManager.INVALID_APPWIDGET_ID
+        ) {
+
+            Toast.makeText(
+                this,
+                "Kunne ikke finde widgetten",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        /*
+         * Åbn Androids normale "Gem som".
+         */
+        val intent =
+            Intent(
+                Intent.ACTION_CREATE_DOCUMENT
+            ).apply {
+
+                addCategory(
+                    Intent.CATEGORY_OPENABLE
+                )
+
+                type =
+                    "application/json"
+
+                putExtra(
+                    Intent.EXTRA_TITLE,
+                    "web-widget-backup-$appWidgetId.json"
+                )
+            }
+
+        startActivityForResult(
+            intent,
+            exportBackupRequest
+        )
+    }
+
+    /*
+     * ----------------------------------------
+     * LAV BACKUP-JSON
+     * ----------------------------------------
+     */
+    private fun createBackupJson(): JSONObject {
+
+        val backup =
+            JSONObject()
+
+        backup.put(
+            "backupVersion",
+            1
+        )
+
+        backup.put(
+            "app",
+            "Web Widget"
+        )
+
+        /*
+         * Globale indstillinger.
+         */
+        backup.put(
+            "adblock",
+            prefs.getBoolean(
+                "adblock",
+                true
+            )
+        )
+
+        /*
+         * Widget-indstillinger.
+         */
+        val widget =
+            JSONObject()
+
+        fun putString(
+            name: String
+        ) {
+
+            if (
+                prefs.contains(
+                    "${name}_$appWidgetId"
+                )
+            ) {
+
+                widget.put(
+                    name,
+                    prefs.getString(
+                        "${name}_$appWidgetId",
+                        ""
+                    )
+                )
+            }
+        }
+
+        fun putBoolean(
+            name: String
+        ) {
+
+            if (
+                prefs.contains(
+                    "${name}_$appWidgetId"
+                )
+            ) {
+
+                widget.put(
+                    name,
+                    prefs.getBoolean(
+                        "${name}_$appWidgetId",
+                        false
+                    )
+                )
+            }
+        }
+
+        fun putInt(
+            name: String
+        ) {
+
+            if (
+                prefs.contains(
+                    "${name}_$appWidgetId"
+                )
+            ) {
+
+                widget.put(
+                    name,
+                    prefs.getInt(
+                        "${name}_$appWidgetId",
+                        0
+                    )
+                )
+            }
+        }
+
+        fun putFloat(
+            name: String
+        ) {
+
+            if (
+                prefs.contains(
+                    "${name}_$appWidgetId"
+                )
+            ) {
+
+                widget.put(
+                    name,
+                    prefs.getFloat(
+                        "${name}_$appWidgetId",
+                        0f
+                    ).toDouble()
+                )
+            }
+        }
+
+        /*
+         * Adresse / lokal fil.
+         */
+        putString(
+            "url"
+        )
+
+        putString(
+            "localUri"
+        )
+
+        /*
+         * Almindelige widget-indstillinger.
+         */
+        putBoolean(
+            "hideCookieBanners"
+        )
+
+        putBoolean(
+            "showUpdateStatus"
+        )
+
+        putInt(
+            "refreshMinutes"
+        )
+
+        /*
+         * Crop.
+         */
+        putBoolean(
+            "cropEnabled"
+        )
+
+        putFloat(
+            "cropCssX"
+        )
+
+        putFloat(
+            "cropCssY"
+        )
+
+        putFloat(
+            "cropCssWidth"
+        )
+
+        putFloat(
+            "cropCssHeight"
+        )
+
+        putFloat(
+            "cropCssViewportWidth"
+        )
+
+        putFloat(
+            "cropCssViewportHeight"
+        )
+
+        putFloat(
+            "cropCssDocumentWidth"
+        )
+
+        putFloat(
+            "cropCssDocumentHeight"
+        )
+
+        putInt(
+            "cropViewportWidth"
+        )
+
+        putInt(
+            "cropViewportHeight"
+        )
+
+        putFloat(
+            "cropWebScale"
+        )
+
+        putInt(
+            "cropSelectionWidth"
+        )
+
+        putInt(
+            "cropSelectionHeight"
+        )
+
+        putInt(
+            "websiteScrollX"
+        )
+
+        putInt(
+            "websiteScrollY"
+        )
+
+        putFloat(
+            "cropFrameX"
+        )
+
+        putFloat(
+            "cropFrameY"
+        )
+
+        putInt(
+            "cropFrameWidth"
+        )
+
+        putInt(
+            "cropFrameHeight"
+        )
+
+        backup.put(
+            "widget",
+            widget
+        )
+
+        return backup
+    }
+
+    /*
+     * ----------------------------------------
+     * SKRIV BACKUP TIL FIL
+     * ----------------------------------------
+     */
+    private fun writeBackup(
+        uri: Uri
+    ) {
+
+        try {
+
+            val json =
+                createBackupJson()
+                    .toString(2)
+
+            contentResolver
+                .openOutputStream(
+                    uri
+                )
+                ?.bufferedWriter()
+                ?.use {
+
+                    it.write(
+                        json
+                    )
+                }
+                ?: throw Exception(
+                    "Kunne ikke åbne filen"
+                )
+
+            Toast.makeText(
+                this,
+                "Backup gemt",
+                Toast.LENGTH_LONG
+            ).show()
+
+        } catch (_: Exception) {
+
+            Toast.makeText(
+                this,
+                "Kunne ikke gemme backup",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    /*
+     * ----------------------------------------
+     * RESULTATER
      * ----------------------------------------
      */
     override fun onActivityResult(
@@ -582,18 +979,28 @@ class SetupActivity : Activity() {
             data
         )
 
+        /*
+         * HTML-FIL VALGT
+         */
         if (
-            requestCode == 42 &&
-            resultCode == RESULT_OK
+            requestCode ==
+            chooseHtmlRequest &&
+            resultCode ==
+            RESULT_OK
         ) {
 
             data?.data?.let { uri ->
 
-                contentResolver
-                    .takePersistableUriPermission(
-                        uri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    )
+                try {
+
+                    contentResolver
+                        .takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+
+                } catch (_: Exception) {
+                }
 
                 localUri =
                     uri
@@ -605,6 +1012,26 @@ class SetupActivity : Activity() {
                     "HTML-fil valgt",
                     Toast.LENGTH_SHORT
                 ).show()
+            }
+
+            return
+        }
+
+        /*
+         * BACKUP-FIL VALGT.
+         */
+        if (
+            requestCode ==
+            exportBackupRequest &&
+            resultCode ==
+            RESULT_OK
+        ) {
+
+            data?.data?.let { uri ->
+
+                writeBackup(
+                    uri
+                )
             }
         }
     }
