@@ -640,7 +640,7 @@ open class HtmlWidgetProvider :
                         R.drawable.widget_background_rounded
 
                     showBorder ->
-                        R.drawable.widget_background_rounded_border
+    R.drawable.widget_background_border
 
                     else ->
                         0
