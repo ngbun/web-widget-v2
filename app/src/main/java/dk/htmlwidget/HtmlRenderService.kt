@@ -14,99 +14,149 @@ import android.view.View
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.RemoteViews
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.math.roundToInt
 
 class HtmlRenderService : Service() {
 
-    private val handler = Handler(Looper.getMainLooper())
+    private val handler =
+        Handler(Looper.getMainLooper())
 
-    override fun onBind(intent: Intent?): IBinder? = null
+    override fun onBind(
+        intent: Intent?
+    ): IBinder? = null
 
     override fun onStartCommand(
         intent: Intent?,
         flags: Int,
         startId: Int
     ): Int {
-        val appWidgetId = intent?.getIntExtra(
-    AppWidgetManager.EXTRA_APPWIDGET_ID,
-    AppWidgetManager.INVALID_APPWIDGET_ID
-) ?: AppWidgetManager.INVALID_APPWIDGET_ID
 
-handler.post {
-    render(appWidgetId)
-}
+        val appWidgetId =
+            intent?.getIntExtra(
+                AppWidgetManager.EXTRA_APPWIDGET_ID,
+                AppWidgetManager.INVALID_APPWIDGET_ID
+            ) ?: AppWidgetManager.INVALID_APPWIDGET_ID
+
+        handler.post {
+
+            render(
+                appWidgetId
+            )
+        }
+
         return START_NOT_STICKY
     }
 
-    private fun render(appWidgetId: Int) {
+    private fun render(
+        appWidgetId: Int
+    ) {
 
         val prefs =
-            getSharedPreferences("settings", MODE_PRIVATE)
+            getSharedPreferences(
+                "settings",
+                MODE_PRIVATE
+            )
 
-        if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
-    stopSelf()
-    return
-}
+        if (
+            appWidgetId ==
+            AppWidgetManager.INVALID_APPWIDGET_ID
+        ) {
 
-val localUri =
-    prefs.getString(
-        "localUri_$appWidgetId",
-        null
-    )
-
-        /*
-         * Denne service håndterer KUN lokal HTML.
-         */
-        if (localUri.isNullOrBlank()) {
             stopSelf()
+
             return
         }
 
-        val html = try {
-            contentResolver
-                .openInputStream(Uri.parse(localUri))
-                ?.bufferedReader()
-                ?.use { it.readText() }
-        } catch (_: Exception) {
-            null
+        val localUri =
+            prefs.getString(
+                "localUri_$appWidgetId",
+                null
+            )
+
+        /*
+         * Denne service håndterer
+         * KUN lokal HTML.
+         */
+        if (
+            localUri.isNullOrBlank()
+        ) {
+
+            stopSelf()
+
+            return
         }
 
-        if (html.isNullOrBlank()) {
+        val html =
+            try {
+
+                contentResolver
+                    .openInputStream(
+                        Uri.parse(localUri)
+                    )
+                    ?.bufferedReader()
+                    ?.use {
+                        it.readText()
+                    }
+
+            } catch (_: Exception) {
+
+                null
+            }
+
+        if (
+            html.isNullOrBlank()
+        ) {
+
             stopSelf()
+
             return
         }
 
         val manager =
-            AppWidgetManager.getInstance(this)
+            AppWidgetManager.getInstance(
+                this
+            )
 
-        val ids = intArrayOf(appWidgetId)
-
-        if (ids.isEmpty()) {
-            stopSelf()
-            return
-        }
+        val ids =
+            intArrayOf(
+                appWidgetId
+            )
 
         val options =
-            manager.getAppWidgetOptions(ids[0])
+            manager.getAppWidgetOptions(
+                appWidgetId
+            )
 
         val density =
-            resources.displayMetrics.density
+            resources
+                .displayMetrics
+                .density
 
-        val width = (
-            options.getInt(
-                AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
-                300
-            ) * density
-        ).roundToInt().coerceAtLeast(1)
+        val width =
+            (
+                options.getInt(
+                    AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
+                    300
+                ) * density
+                )
+                .roundToInt()
+                .coerceAtLeast(1)
 
-        val height = (
-            options.getInt(
-                AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,
-                180
-            ) * density
-        ).roundToInt().coerceAtLeast(1)
+        val height =
+            (
+                options.getInt(
+                    AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,
+                    180
+                ) * density
+                )
+                .roundToInt()
+                .coerceAtLeast(1)
 
-        val web = WebView(this)
+        val web =
+            WebView(this)
 
         web.setLayerType(
             View.LAYER_TYPE_SOFTWARE,
@@ -114,18 +164,30 @@ val localUri =
         )
 
         web.settings.apply {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            loadsImagesAutomatically = true
-            useWideViewPort = true
-            loadWithOverviewMode = false
+
+            javaScriptEnabled =
+                true
+
+            domStorageEnabled =
+                true
+
+            loadsImagesAutomatically =
+                true
+
+            useWideViewPort =
+                true
+
+            loadWithOverviewMode =
+                false
         }
 
         web.measure(
+
             View.MeasureSpec.makeMeasureSpec(
                 width,
                 View.MeasureSpec.EXACTLY
             ),
+
             View.MeasureSpec.makeMeasureSpec(
                 height,
                 View.MeasureSpec.EXACTLY
@@ -140,7 +202,8 @@ val localUri =
         )
 
         web.webViewClient =
-            object : WebViewClient() {
+            object :
+                WebViewClient() {
 
                 override fun onPageFinished(
                     view: WebView?,
@@ -202,12 +265,20 @@ val localUri =
                     Bitmap.Config.ARGB_8888
                 )
 
-            val canvas = Canvas(bitmap)
+            val canvas =
+                Canvas(
+                    bitmap
+                )
 
-            web.draw(canvas)
+            web.draw(
+                canvas
+            )
 
             ids.forEach { id ->
 
+                /*
+                 * Opdater selve widget-billedet.
+                 */
                 val views =
                     RemoteViews(
                         packageName,
@@ -223,9 +294,75 @@ val localUri =
                     id,
                     views
                 )
+
+                /*
+                 * --------------------------------
+                 * OPDATERINGSSTATUS
+                 * --------------------------------
+                 *
+                 * Den almindelige updateAppWidget
+                 * ovenfor nulstiller statusfeltet.
+                 *
+                 * Derfor sætter vi status bagefter.
+                 */
+                val prefs =
+                    getSharedPreferences(
+                        "settings",
+                        MODE_PRIVATE
+                    )
+
+                val showStatus =
+                    prefs.getBoolean(
+                        "showUpdateStatus_$id",
+                        true
+                    )
+
+                /*
+                 * Gem tidspunktet for den
+                 * vellykkede lokale rendering.
+                 */
+                prefs.edit()
+                    .putLong(
+                        "lastSuccessfulUpdate_$id",
+                        System.currentTimeMillis()
+                    )
+                    .apply()
+
+                if (showStatus) {
+
+                    val time =
+                        SimpleDateFormat(
+                            "HH:mm",
+                            Locale.getDefault()
+                        ).format(
+                            Date()
+                        )
+
+                    val statusViews =
+                        RemoteViews(
+                            packageName,
+                            R.layout.widget_layout
+                        )
+
+                    statusViews.setTextViewText(
+                        R.id.widget_status,
+                        "Opdateret $time"
+                    )
+
+                    statusViews.setViewVisibility(
+                        R.id.widget_status,
+                        View.VISIBLE
+                    )
+
+                    manager.partiallyUpdateAppWidget(
+                        id,
+                        statusViews
+                    )
+                }
             }
 
             web.destroy()
+
             stopSelf()
 
         }, 300)
@@ -234,20 +371,25 @@ val localUri =
     companion object {
 
         fun start(
-    context: Context,
-    appWidgetId: Int
-) {
-    val intent = Intent(
-        context,
-        HtmlRenderService::class.java
-    ).apply {
-        putExtra(
-            AppWidgetManager.EXTRA_APPWIDGET_ID,
-            appWidgetId
-        )
-    }
+            context: Context,
+            appWidgetId: Int
+        ) {
 
-    context.startService(intent)
-}
+            val intent =
+                Intent(
+                    context,
+                    HtmlRenderService::class.java
+                ).apply {
+
+                    putExtra(
+                        AppWidgetManager.EXTRA_APPWIDGET_ID,
+                        appWidgetId
+                    )
+                }
+
+            context.startService(
+                intent
+            )
+        }
     }
 }
