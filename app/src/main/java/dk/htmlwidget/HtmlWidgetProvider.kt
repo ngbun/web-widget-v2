@@ -269,9 +269,6 @@ open class HtmlWidgetProvider :
                 "website-refresh-$id"
             )
 
-            /*
-             * Fjern almindelige widget-indstillinger.
-             */
             val editor =
                 prefs.edit()
 
@@ -293,9 +290,6 @@ open class HtmlWidgetProvider :
                     "autoSwitchViews_$id"
                 )
 
-                /*
-                 * UDSEENDE
-                 */
                 .remove(
                     "roundedCorners_$id"
                 )
@@ -328,9 +322,6 @@ open class HtmlWidgetProvider :
                     "cropViewCount_$id"
                 )
 
-                /*
-                 * CROP
-                 */
                 .remove(
                     "cropEnabled_$id"
                 )
@@ -496,10 +487,7 @@ open class HtmlWidgetProvider :
                 )
 
             /*
-             * Fjern alle gemte ekstra visninger.
-             *
-             * Vi går lidt højere end det aktuelle antal,
-             * så gamle rester også bliver fjernet.
+             * Fjern eventuelle gemte ekstra visninger.
              */
             for (
                 viewNumber in 1..50
@@ -615,26 +603,14 @@ open class HtmlWidgetProvider :
                     true
                 )
 
-                views.setViewVisibility(
-    R.id.widget_border,
-    if (showBorder) {
-        View.VISIBLE
-    } else {
-        View.GONE
-    }
-)
-
             /*
-             * Vælg drawable.
+             * VIGTIGT:
              *
-             * De drawables vi allerede har:
-             *
-             * widget_background_rounded
-             * widget_background_rounded_border
-             *
-             * Når baggrund er slået fra,
-             * fjernes baggrunden helt.
+             * Vi styrer IKKE widget_border her.
+             * Den ændring gav "Widget kan ikke vises"
+             * på Android-launcheren.
              */
+
             val backgroundResource =
                 when {
 
@@ -649,7 +625,7 @@ open class HtmlWidgetProvider :
                         R.drawable.widget_background_rounded
 
                     showBorder ->
-    R.drawable.widget_background_border
+                        R.drawable.widget_background_border
 
                     else ->
                         0
@@ -849,10 +825,6 @@ open class HtmlWidgetProvider :
                         R.layout.widget_layout
                     )
 
-                /*
-                 * Anvend udseendet for netop
-                 * denne widget.
-                 */
                 applyWidgetAppearance(
                     context,
                     id,
