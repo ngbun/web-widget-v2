@@ -860,18 +860,10 @@ class WebsiteRefreshWorker(
                      * egen afrundede beskæring.
                      */
                     val borderInset =
-                        (4f * density)
-                            .coerceAtLeast(
-                                borderWidth
-                            )
+    1.5f * density
 
-                    /*
-                     * Lidt større runding end før.
-                     * Det passer bedre til Androids
-                     * afrundede widgethjørner.
-                     */
-                    val cornerRadius =
-                        24f * density
+val cornerRadius =
+    18f * density
 
                     val borderPaint =
                         Paint(
