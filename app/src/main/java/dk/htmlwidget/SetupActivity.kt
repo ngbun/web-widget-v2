@@ -1600,4 +1600,73 @@ class SetupActivity : Activity() {
             }
         }
     }
+
+        /*
+     * ----------------------------------------
+     * FIND ANDRE WEBSITE-WIDGETS
+     * ----------------------------------------
+     */
+    private fun findReusableWebsiteWidgets(): List<Pair<Int, String>> {
+
+        val result =
+            mutableListOf<Pair<Int, String>>()
+
+        prefs.all.keys
+            .filter {
+                it.startsWith("url_")
+            }
+            .forEach { key ->
+
+                val id =
+                    key.removePrefix("url_")
+                        .toIntOrNull()
+                        ?: return@forEach
+
+                if (
+                    id == appWidgetId
+                ) {
+                    return@forEach
+                }
+
+                val website =
+                    prefs.getString(
+                        "url_$id",
+                        ""
+                    )
+                        ?.trim()
+                        .orEmpty()
+
+                if (
+                    website.isEmpty()
+                ) {
+                    return@forEach
+                }
+
+                val name =
+                    prefs.getString(
+                        "widgetName_$id",
+                        ""
+                    )
+                        ?.trim()
+                        .orEmpty()
+
+                val displayName =
+                    if (
+                        name.isNotEmpty()
+                    ) {
+                        name
+                    } else {
+                        website
+                    }
+
+                result.add(
+                    id to displayName
+                )
+            }
+
+        return result
+            .sortedBy {
+                it.second.lowercase()
+            }
+    }
 }
