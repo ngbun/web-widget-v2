@@ -846,6 +846,40 @@ class WebsiteRefreshWorker(
                         selectedBitmap
                     }
 
+/*
+ * ----------------------------------------
+ * GEM PREVIEW-BILLEDE
+ * ----------------------------------------
+ *
+ * Gemmer det samme færdige bitmap,
+ * som bliver vist på widgetten.
+ */
+try {
+
+    val previewFile =
+        File(
+            context.filesDir,
+            "widget_$appWidgetId.png"
+        )
+
+    FileOutputStream(
+        previewFile
+    ).use { output ->
+
+        finalBitmap.compress(
+            Bitmap.CompressFormat.PNG,
+            100,
+            output
+        )
+    }
+
+} catch (_: Exception) {
+    /*
+     * Preview må aldrig få selve
+     * widget-opdateringen til at fejle.
+     */
+}
+                    
                 /*
                  * ----------------------------------------
                  * CHECKSUM
