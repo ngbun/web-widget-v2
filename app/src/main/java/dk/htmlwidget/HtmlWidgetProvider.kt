@@ -615,6 +615,15 @@ open class HtmlWidgetProvider :
                     true
                 )
 
+                views.setViewVisibility(
+    R.id.widget_border,
+    if (showBorder) {
+        View.VISIBLE
+    } else {
+        View.GONE
+    }
+)
+
             /*
              * Vælg drawable.
              *
