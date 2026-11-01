@@ -119,9 +119,6 @@ class WebsiteRefreshWorker(
                 false
             )
 
-        /*
-         * NYE CSS-koordinater fra hjemmesiden.
-         */
         val cropCssX =
             prefs.getFloat(
                 "cropCssX_$appWidgetId",
@@ -146,13 +143,6 @@ class WebsiteRefreshWorker(
                 0f
             ).coerceAtLeast(0f)
 
-        /*
-         * Viewport fra område-vælgeren.
-         *
-         * Worker'en oprettes med samme størrelse,
-         * så hjemmesidens responsive layout bliver
-         * så identisk som muligt.
-         */
         val savedViewportWidth =
             prefs.getInt(
                 "cropViewportWidth_$appWidgetId",
@@ -198,9 +188,6 @@ class WebsiteRefreshWorker(
             ).roundToInt()
                 .coerceAtLeast(1)
 
-        /*
-         * Samme viewport som område-vælgeren.
-         */
         val renderWidth =
             if (
                 cropEnabled &&
@@ -285,10 +272,6 @@ class WebsiteRefreshWorker(
             latch.countDown()
         }
 
-        /*
-         * Tegner widgetten, når workerens egne
-         * CSS viewport-værdier er aflæst.
-         */
         fun drawWidget(
             workerCssViewportWidth: Float,
             workerCssViewportHeight: Float
@@ -307,10 +290,6 @@ class WebsiteRefreshWorker(
                             return
                         }
 
-                /*
-                 * Hvor mange Android/WebView-pixels
-                 * svarer til én CSS-pixel i worker'en?
-                 */
                 val pixelsPerCssX =
                     renderWidth.toFloat() /
                         workerCssViewportWidth
@@ -321,11 +300,6 @@ class WebsiteRefreshWorker(
                         workerCssViewportHeight
                             .coerceAtLeast(1f)
 
-                /*
-                 * CSS-koordinaterne fra vælgeren
-                 * omregnes direkte til workerens
-                 * tegningskoordinater.
-                 */
                 val drawX =
                     if (cropEnabled) {
 
@@ -386,13 +360,6 @@ class WebsiteRefreshWorker(
                         widgetHeight
                     }
 
-                /*
-                 * Kun det valgte område oprettes
-                 * som bitmap.
-                 *
-                 * Vi laver stadig IKKE et kæmpe
-                 * bitmap af hele hjemmesiden.
-                 */
                 val selectedBitmap =
                     Bitmap.createBitmap(
                         captureWidth,
@@ -407,13 +374,6 @@ class WebsiteRefreshWorker(
 
                 canvas.save()
 
-                /*
-                 * Ingen scrollTo().
-                 *
-                 * Hele dokumenttegningen flyttes,
-                 * så det valgte CSS-område rammer
-                 * bitmap'ets øverste venstre hjørne.
-                 */
                 canvas.translate(
                     -drawX.toFloat(),
                     -drawY.toFloat()
@@ -425,10 +385,6 @@ class WebsiteRefreshWorker(
 
                 canvas.restore()
 
-                /*
-                 * Skaler udsnittet til widgettens
-                 * faktiske størrelse.
-                 */
                 val finalBitmap =
                     if (
                         captureWidth != widgetWidth ||
@@ -463,11 +419,6 @@ class WebsiteRefreshWorker(
                     views
                 )
 
-                /*
-                 * Gem workerens beregnede værdier.
-                 * De kan bruges til fejlsøgning,
-                 * hvis vi stadig har en forskydning.
-                 */
                 prefs.edit()
 
                     .putInt(
@@ -500,6 +451,11 @@ class WebsiteRefreshWorker(
                         pixelsPerCssY
                     )
 
+                    .putLong(
+                        "lastSuccessfulUpdate_$appWidgetId",
+                        System.currentTimeMillis()
+                    )
+
                     .apply()
 
             } catch (_: Exception) {
@@ -510,9 +466,91 @@ class WebsiteRefreshWorker(
         }
 
         /*
-         * Spørg workerens hjemmeside om dens
-         * faktiske CSS viewport.
+         * Fjerner kendte cookie-/samtykke-bannere.
+         *
+         * Vi ændrer IKKE scroll eller CSS-koordinaterne.
          */
+        fun hideCookieBanners(
+            after: () -> Unit
+        ) {
+
+            val currentWeb =
+                web
+                    ?: run {
+                        cleanup()
+                        return
+                    }
+
+            val hideCookieBanners =
+                prefs.getBoolean(
+                    "hideCookieBanners",
+                    true
+                )
+
+            if (!hideCookieBanners) {
+
+                after()
+                return
+            }
+
+            val javascript =
+                """
+                (function() {
+                    try {
+
+                        const selectors = [
+                            '#onetrust-banner-sdk',
+                            '#onetrust-consent-sdk',
+                            '.qc-cmp2-container',
+                            '.fc-consent-root',
+                            '#CybotCookiebotDialog',
+                            '#CookiebotWidget',
+                            '[id^="sp_message_container"]',
+                            '[class*="sp_message_container"]'
+                        ];
+
+                        selectors.forEach(function(selector) {
+
+                            document
+                                .querySelectorAll(selector)
+                                .forEach(function(element) {
+
+                                    element.remove();
+
+                                });
+                        });
+
+                        document.documentElement.style.setProperty(
+                            'overflow',
+                            'auto',
+                            'important'
+                        );
+
+                        if (document.body) {
+
+                            document.body.style.setProperty(
+                                'overflow',
+                                'auto',
+                                'important'
+                            );
+                        }
+
+                    } catch (e) {
+                    }
+
+                    return 'ok';
+
+                })();
+                """.trimIndent()
+
+            currentWeb.evaluateJavascript(
+                javascript
+            ) {
+
+                after()
+            }
+        }
+
         fun readWorkerCssViewport() {
 
             val currentWeb =
@@ -567,10 +605,6 @@ class WebsiteRefreshWorker(
 
                 } catch (_: Exception) {
 
-                    /*
-                     * Fallback:
-                     * 1 CSS-pixel = 1 render-pixel.
-                     */
                     drawWidget(
                         renderWidth.toFloat(),
                         renderHeight.toFloat()
@@ -716,13 +750,15 @@ class WebsiteRefreshWorker(
                     ) {
 
                         /*
-                         * Behold 6 sekunders ventetid,
-                         * så dynamisk indhold får tid
-                         * til at falde på plads.
+                         * Beholder vores fungerende
+                         * ventetid på 2 sekunder.
                          */
                         mainHandler.postDelayed({
 
-                            readWorkerCssViewport()
+                            hideCookieBanners {
+
+                                readWorkerCssViewport()
+                            }
 
                         }, 2000)
                     }
@@ -735,6 +771,7 @@ class WebsiteRefreshWorker(
             mainHandler.postDelayed({
 
                 if (!completed) {
+
                     cleanup()
                 }
 
