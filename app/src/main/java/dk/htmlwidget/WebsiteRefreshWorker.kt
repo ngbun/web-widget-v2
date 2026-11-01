@@ -75,7 +75,9 @@ class WebsiteRefreshWorker(
                 )
         ) {
 
-            if (manualRefresh) {
+            if (
+                manualRefresh
+            ) {
 
                 showFailureStatus(
                     appWidgetId
@@ -88,7 +90,8 @@ class WebsiteRefreshWorker(
         val latch =
             CountDownLatch(1)
 
-        var successful = false
+        var successful =
+            false
 
         mainHandler.post {
 
@@ -107,9 +110,13 @@ class WebsiteRefreshWorker(
                 TimeUnit.SECONDS
             )
 
-        if (!completed) {
+        if (
+            !completed
+        ) {
 
-            if (manualRefresh) {
+            if (
+                manualRefresh
+            ) {
 
                 mainHandler.post {
 
@@ -122,13 +129,17 @@ class WebsiteRefreshWorker(
             return Result.retry()
         }
 
-        return if (successful) {
+        return if (
+            successful
+        ) {
 
             Result.success()
 
         } else {
 
-            if (manualRefresh) {
+            if (
+                manualRefresh
+            ) {
 
                 mainHandler.post {
 
@@ -178,7 +189,9 @@ class WebsiteRefreshWorker(
                 true
             )
 
-        if (!showStatus) {
+        if (
+            !showStatus
+        ) {
             return
         }
 
@@ -225,47 +238,190 @@ class WebsiteRefreshWorker(
                 Context.MODE_PRIVATE
             )
 
-        val cropEnabled =
+        /*
+         * ----------------------------------------
+         * AUTOMATISK SKIFT MELLEM VISNINGER
+         * ----------------------------------------
+         *
+         * Visning 1 bruger fortsat de gamle
+         * crop-nøgler.
+         *
+         * Det betyder, at eksisterende widgets
+         * fortsætter med at virke som før.
+         */
+        val autoSwitchViews =
             prefs.getBoolean(
-                "cropEnabled_$appWidgetId",
+                "autoSwitchViews_$appWidgetId",
                 false
             )
 
+        val cropViewCount =
+            prefs.getInt(
+                "cropViewCount_$appWidgetId",
+                0
+            ).coerceAtLeast(0)
+
+        val lastDisplayedView =
+            prefs.getInt(
+                "currentCropView_$appWidgetId",
+                0
+            )
+
+        val selectedView =
+            if (
+                autoSwitchViews &&
+                cropViewCount > 1
+            ) {
+
+                if (
+                    lastDisplayedView < 1 ||
+                    lastDisplayedView >= cropViewCount
+                ) {
+
+                    1
+
+                } else {
+
+                    lastDisplayedView + 1
+                }
+
+            } else {
+
+                1
+            }
+
+        /*
+         * Visning 1 læses fra de oprindelige
+         * nøgler.
+         *
+         * Visning 2, 3, 4 osv. læses fra de
+         * nye nummererede nøgler.
+         */
+        val cropEnabled =
+            if (
+                selectedView == 1
+            ) {
+
+                prefs.getBoolean(
+                    "cropEnabled_$appWidgetId",
+                    false
+                )
+
+            } else {
+
+                prefs.getBoolean(
+                    "cropView_${selectedView}_enabled_$appWidgetId",
+                    false
+                )
+            }
+
         val cropCssX =
-            prefs.getFloat(
-                "cropCssX_$appWidgetId",
-                0f
-            ).coerceAtLeast(0f)
+            if (
+                selectedView == 1
+            ) {
+
+                prefs.getFloat(
+                    "cropCssX_$appWidgetId",
+                    0f
+                )
+
+            } else {
+
+                prefs.getFloat(
+                    "cropView_${selectedView}_cropCssX_$appWidgetId",
+                    0f
+                )
+            }.coerceAtLeast(0f)
 
         val cropCssY =
-            prefs.getFloat(
-                "cropCssY_$appWidgetId",
-                0f
-            ).coerceAtLeast(0f)
+            if (
+                selectedView == 1
+            ) {
+
+                prefs.getFloat(
+                    "cropCssY_$appWidgetId",
+                    0f
+                )
+
+            } else {
+
+                prefs.getFloat(
+                    "cropView_${selectedView}_cropCssY_$appWidgetId",
+                    0f
+                )
+            }.coerceAtLeast(0f)
 
         val cropCssWidth =
-            prefs.getFloat(
-                "cropCssWidth_$appWidgetId",
-                0f
-            ).coerceAtLeast(0f)
+            if (
+                selectedView == 1
+            ) {
+
+                prefs.getFloat(
+                    "cropCssWidth_$appWidgetId",
+                    0f
+                )
+
+            } else {
+
+                prefs.getFloat(
+                    "cropView_${selectedView}_cropCssWidth_$appWidgetId",
+                    0f
+                )
+            }.coerceAtLeast(0f)
 
         val cropCssHeight =
-            prefs.getFloat(
-                "cropCssHeight_$appWidgetId",
-                0f
-            ).coerceAtLeast(0f)
+            if (
+                selectedView == 1
+            ) {
+
+                prefs.getFloat(
+                    "cropCssHeight_$appWidgetId",
+                    0f
+                )
+
+            } else {
+
+                prefs.getFloat(
+                    "cropView_${selectedView}_cropCssHeight_$appWidgetId",
+                    0f
+                )
+            }.coerceAtLeast(0f)
 
         val savedViewportWidth =
-            prefs.getInt(
-                "cropViewportWidth_$appWidgetId",
-                0
-            )
+            if (
+                selectedView == 1
+            ) {
+
+                prefs.getInt(
+                    "cropViewportWidth_$appWidgetId",
+                    0
+                )
+
+            } else {
+
+                prefs.getInt(
+                    "cropView_${selectedView}_cropViewportWidth_$appWidgetId",
+                    0
+                )
+            }
 
         val savedViewportHeight =
-            prefs.getInt(
-                "cropViewportHeight_$appWidgetId",
-                0
-            )
+            if (
+                selectedView == 1
+            ) {
+
+                prefs.getInt(
+                    "cropViewportHeight_$appWidgetId",
+                    0
+                )
+
+            } else {
+
+                prefs.getInt(
+                    "cropView_${selectedView}_cropViewportHeight_$appWidgetId",
+                    0
+                )
+            }
 
         val manager =
             AppWidgetManager.getInstance(
@@ -288,7 +444,8 @@ class WebsiteRefreshWorker(
                     AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
                     300
                 ) * density
-                ).roundToInt()
+                )
+                .roundToInt()
                 .coerceAtLeast(1)
 
         val widgetHeight =
@@ -297,7 +454,8 @@ class WebsiteRefreshWorker(
                     AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,
                     180
                 ) * density
-                ).roundToInt()
+                )
+                .roundToInt()
                 .coerceAtLeast(1)
 
         val renderWidth =
@@ -355,22 +513,27 @@ class WebsiteRefreshWorker(
         var web: WebView? =
             null
 
-        var completed = false
+        var completed =
+            false
 
         /*
          * Denne værdi fortæller cleanup(),
          * om vi rent faktisk nåede frem til
          * et færdigt og gyldigt widgetbillede.
          */
-        var renderSucceeded = false
+        var renderSucceeded =
+            false
 
         fun cleanup() {
 
-            if (completed) {
+            if (
+                completed
+            ) {
                 return
             }
 
-            completed = true
+            completed =
+                true
 
             try {
 
@@ -429,7 +592,9 @@ class WebsiteRefreshWorker(
 
         fun showFinishedStatus() {
 
-            if (!manualRefresh) {
+            if (
+                !manualRefresh
+            ) {
                 return
             }
 
@@ -439,7 +604,9 @@ class WebsiteRefreshWorker(
                     true
                 )
 
-            if (!showStatus) {
+            if (
+                !showStatus
+            ) {
                 return
             }
 
@@ -526,13 +693,14 @@ class WebsiteRefreshWorker(
 
             return crc.value
         }
-
-        fun drawWidget(
+                fun drawWidget(
             workerCssViewportWidth: Float,
             workerCssViewportHeight: Float
         ) {
 
-            if (completed) {
+            if (
+                completed
+            ) {
                 return
             }
 
@@ -543,7 +711,6 @@ class WebsiteRefreshWorker(
                         ?: run {
 
                             cleanup()
-
                             return
                         }
 
@@ -565,12 +732,15 @@ class WebsiteRefreshWorker(
                             .coerceAtLeast(1f)
 
                 val drawX =
-                    if (cropEnabled) {
+                    if (
+                        cropEnabled
+                    ) {
 
                         (
                             cropCssX *
                                 pixelsPerCssX
-                            ).roundToInt()
+                            )
+                            .roundToInt()
                             .coerceAtLeast(0)
 
                     } else {
@@ -579,12 +749,15 @@ class WebsiteRefreshWorker(
                     }
 
                 val drawY =
-                    if (cropEnabled) {
+                    if (
+                        cropEnabled
+                    ) {
 
                         (
                             cropCssY *
                                 pixelsPerCssY
-                            ).roundToInt()
+                            )
+                            .roundToInt()
                             .coerceAtLeast(0)
 
                     } else {
@@ -601,7 +774,8 @@ class WebsiteRefreshWorker(
                         (
                             cropCssWidth *
                                 pixelsPerCssX
-                            ).roundToInt()
+                            )
+                            .roundToInt()
                             .coerceAtLeast(1)
 
                     } else {
@@ -618,7 +792,8 @@ class WebsiteRefreshWorker(
                         (
                             cropCssHeight *
                                 pixelsPerCssY
-                            ).roundToInt()
+                            )
+                            .roundToInt()
                             .coerceAtLeast(1)
 
                     } else {
@@ -670,7 +845,9 @@ class WebsiteRefreshWorker(
                     }
 
                 /*
-                 * Checksum.
+                 * ----------------------------------------
+                 * CHECKSUM
+                 * ----------------------------------------
                  */
                 val newChecksum =
                     bitmapChecksum(
@@ -691,7 +868,9 @@ class WebsiteRefreshWorker(
                  * Send kun nyt billede til Android,
                  * hvis indholdet har ændret sig.
                  */
-                if (imageChanged) {
+                if (
+                    imageChanged
+                ) {
 
                     val views =
                         RemoteViews(
@@ -711,57 +890,91 @@ class WebsiteRefreshWorker(
                 }
 
                 /*
-                 * Hvis vi er nået hertil,
-                 * er renderingen lykkedes.
+                 * ----------------------------------------
+                 * RENDERING LYKKEDES
+                 * ----------------------------------------
                  */
-                renderSucceeded = true
+                renderSucceeded =
+                    true
 
                 val successfulUpdateTime =
                     System.currentTimeMillis()
 
-                prefs.edit()
+                val editor =
+                    prefs.edit()
 
-                    .putLong(
-                        "lastBitmapChecksum_$appWidgetId",
-                        newChecksum
+                        .putLong(
+                            "lastBitmapChecksum_$appWidgetId",
+                            newChecksum
+                        )
+
+                        .putInt(
+                            "cropBitmapX_$appWidgetId",
+                            drawX
+                        )
+
+                        .putInt(
+                            "cropBitmapY_$appWidgetId",
+                            drawY
+                        )
+
+                        .putFloat(
+                            "cropWorkerCssViewportWidth_$appWidgetId",
+                            workerCssViewportWidth
+                        )
+
+                        .putFloat(
+                            "cropWorkerCssViewportHeight_$appWidgetId",
+                            workerCssViewportHeight
+                        )
+
+                        .putFloat(
+                            "cropWorkerPixelsPerCssX_$appWidgetId",
+                            pixelsPerCssX
+                        )
+
+                        .putFloat(
+                            "cropWorkerPixelsPerCssY_$appWidgetId",
+                            pixelsPerCssY
+                        )
+
+                        .putLong(
+                            "lastSuccessfulUpdate_$appWidgetId",
+                            successfulUpdateTime
+                        )
+
+                /*
+                 * ----------------------------------------
+                 * GEM AKTUEL VISNING
+                 * ----------------------------------------
+                 *
+                 * VIGTIGT:
+                 *
+                 * Vi gemmer først selectedView EFTER
+                 * en vellykket rendering.
+                 *
+                 * Hvis renderingen fejler, springer
+                 * widgetten derfor ikke en visning over.
+                 */
+                if (
+                    autoSwitchViews &&
+                    cropViewCount > 1
+                ) {
+
+                    editor.putInt(
+                        "currentCropView_$appWidgetId",
+                        selectedView
                     )
 
-                    .putInt(
-                        "cropBitmapX_$appWidgetId",
-                        drawX
-                    )
+                } else {
 
-                    .putInt(
-                        "cropBitmapY_$appWidgetId",
-                        drawY
+                    editor.putInt(
+                        "currentCropView_$appWidgetId",
+                        1
                     )
+                }
 
-                    .putFloat(
-                        "cropWorkerCssViewportWidth_$appWidgetId",
-                        workerCssViewportWidth
-                    )
-
-                    .putFloat(
-                        "cropWorkerCssViewportHeight_$appWidgetId",
-                        workerCssViewportHeight
-                    )
-
-                    .putFloat(
-                        "cropWorkerPixelsPerCssX_$appWidgetId",
-                        pixelsPerCssX
-                    )
-
-                    .putFloat(
-                        "cropWorkerPixelsPerCssY_$appWidgetId",
-                        pixelsPerCssY
-                    )
-
-                    .putLong(
-                        "lastSuccessfulUpdate_$appWidgetId",
-                        successfulUpdateTime
-                    )
-
-                    .apply()
+                editor.apply()
 
                 showFinishedStatus()
 
@@ -789,6 +1002,7 @@ class WebsiteRefreshWorker(
                  * Ingen updateAppWidget.
                  * Ingen ny checksum.
                  * Intet nyt success-tidspunkt.
+                 * Ingen ændring af currentCropView.
                  *
                  * Det sidste gode billede
                  * bliver stående.
@@ -814,7 +1028,6 @@ class WebsiteRefreshWorker(
                     ?: run {
 
                         cleanup()
-
                         return
                     }
 
@@ -827,10 +1040,11 @@ class WebsiteRefreshWorker(
                     )
                 )
 
-            if (!hideCookieBanners) {
+            if (
+                !hideCookieBanners
+            ) {
 
                 after()
-
                 return
             }
 
@@ -907,7 +1121,6 @@ class WebsiteRefreshWorker(
                     ?: run {
 
                         cleanup()
-
                         return
                     }
 
@@ -971,6 +1184,11 @@ class WebsiteRefreshWorker(
             }
         }
 
+        /*
+         * ----------------------------------------
+         * OPRET SKJULT WEBVIEW
+         * ----------------------------------------
+         */
         return try {
 
             virtualDisplay =
@@ -992,7 +1210,6 @@ class WebsiteRefreshWorker(
                     ?: run {
 
                         cleanup()
-
                         return false
                     }
 
@@ -1062,7 +1279,9 @@ class WebsiteRefreshWorker(
                                 true
                             )
 
-                        if (!adBlockEnabled) {
+                        if (
+                            !adBlockEnabled
+                        ) {
 
                             return super
                                 .shouldInterceptRequest(
@@ -1101,7 +1320,9 @@ class WebsiteRefreshWorker(
                                     )
                             }
 
-                        return if (blocked) {
+                        return if (
+                            blocked
+                        ) {
 
                             android.webkit.WebResourceResponse(
                                 "text/plain",
@@ -1156,7 +1377,9 @@ class WebsiteRefreshWorker(
              */
             mainHandler.postDelayed({
 
-                if (!completed) {
+                if (
+                    !completed
+                ) {
 
                     cleanup()
                 }
