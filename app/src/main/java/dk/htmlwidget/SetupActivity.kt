@@ -2,7 +2,6 @@ package dk.htmlwidget
 
 import android.app.Activity
 import android.appwidget.AppWidgetManager
-import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -15,264 +14,535 @@ import java.util.concurrent.TimeUnit
 class SetupActivity : Activity() {
 
     private val prefs by lazy {
-        getSharedPreferences("settings", MODE_PRIVATE)
+        getSharedPreferences(
+            "settings",
+            MODE_PRIVATE
+        )
     }
 
     private var localUri: Uri? = null
+
     private lateinit var url: EditText
+
     private lateinit var adBlock: CheckBox
-    private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        appWidgetId = intent?.extras?.getInt(
-    AppWidgetManager.EXTRA_APPWIDGET_ID,
-    AppWidgetManager.INVALID_APPWIDGET_ID
-) ?: AppWidgetManager.INVALID_APPWIDGET_ID
+    private lateinit var hideCookieBanners: CheckBox
 
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(40, 40, 40, 40)
-        }
+    private var appWidgetId =
+        AppWidgetManager.INVALID_APPWIDGET_ID
 
-        layout.addView(TextView(this).apply {
-            text = "HTML Widget"
-            textSize = 26f
-        })
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
 
-        layout.addView(TextView(this).apply {
-            text = "Indsæt adressen på en hjemmeside eller vælg en HTML-fil fra telefonen."
-            textSize = 16f
-        })
+        super.onCreate(
+            savedInstanceState
+        )
 
-        url = EditText(this).apply {
-            hint = "https://eksempel.dk"
-            setText(
-    prefs.getString(
-        "url_$appWidgetId",
-        ""
-    )
-)
-            setSingleLine(true)
-        }
+        appWidgetId =
+            intent?.extras?.getInt(
+                AppWidgetManager.EXTRA_APPWIDGET_ID,
+                AppWidgetManager.INVALID_APPWIDGET_ID
+            )
+                ?: AppWidgetManager.INVALID_APPWIDGET_ID
 
-        layout.addView(url)
+        val layout =
+            LinearLayout(this).apply {
 
-        layout.addView(Button(this).apply {
-    text = "Vælg område på websiden"
+                orientation =
+                    LinearLayout.VERTICAL
 
-    setOnClickListener {
-
-        val website =
-            url.text.toString().trim()
-
-        if (website.isEmpty()) {
-
-            Toast.makeText(
-                this@SetupActivity,
-                "Indtast først en hjemmesideadresse",
-                Toast.LENGTH_SHORT
-            ).show()
-
-            return@setOnClickListener
-        }
-
-        val cropIntent =
-            Intent(
-                this@SetupActivity,
-                CropWebsiteActivity::class.java
-            ).apply {
-
-                putExtra(
-                    AppWidgetManager.EXTRA_APPWIDGET_ID,
-                    appWidgetId
-                )
-
-                putExtra(
-                    "website",
-                    website
+                setPadding(
+                    40,
+                    40,
+                    40,
+                    40
                 )
             }
 
-        startActivity(cropIntent)
-    }
-})
+        layout.addView(
+            TextView(this).apply {
 
-        layout.addView(Button(this).apply {
-            text = "Vælg HTML-fil"
+                text =
+                    "HTML Widget"
 
-            setOnClickListener {
-                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                    addCategory(Intent.CATEGORY_OPENABLE)
-                    type = "text/html"
-                    addFlags(
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                        Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+                textSize =
+                    26f
+            }
+        )
+
+        layout.addView(
+            TextView(this).apply {
+
+                text =
+                    "Indsæt adressen på en hjemmeside eller vælg en HTML-fil fra telefonen."
+
+                textSize =
+                    16f
+            }
+        )
+
+        url =
+            EditText(this).apply {
+
+                hint =
+                    "https://eksempel.dk"
+
+                setText(
+                    prefs.getString(
+                        "url_$appWidgetId",
+                        ""
+                    )
+                )
+
+                setSingleLine(
+                    true
+                )
+            }
+
+        layout.addView(
+            url
+        )
+
+        /*
+         * VÆLG OMRÅDE
+         */
+        layout.addView(
+            Button(this).apply {
+
+                text =
+                    "Vælg område på websiden"
+
+                setOnClickListener {
+
+                    val website =
+                        url.text
+                            .toString()
+                            .trim()
+
+                    if (
+                        website.isEmpty()
+                    ) {
+
+                        Toast.makeText(
+                            this@SetupActivity,
+                            "Indtast først en hjemmesideadresse",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        return@setOnClickListener
+                    }
+
+                    /*
+                     * Gem URL'en allerede her.
+                     *
+                     * CropWebsiteActivity læser URL'en
+                     * fra SharedPreferences.
+                     */
+                    prefs.edit()
+                        .putString(
+                            "url_$appWidgetId",
+                            website
+                        )
+                        .apply()
+
+                    val cropIntent =
+                        Intent(
+                            this@SetupActivity,
+                            CropWebsiteActivity::class.java
+                        ).apply {
+
+                            putExtra(
+                                AppWidgetManager.EXTRA_APPWIDGET_ID,
+                                appWidgetId
+                            )
+
+                            putExtra(
+                                "website",
+                                website
+                            )
+                        }
+
+                    startActivity(
+                        cropIntent
                     )
                 }
-
-                startActivityForResult(intent, 42)
             }
-        })
-
-        adBlock = CheckBox(this).apply {
-            text = "Bloker reklamer og tracking"
-            isChecked = prefs.getBoolean("adblock", true)
-        }
-layout.addView(adBlock)
-        val refreshValues = intArrayOf(
-    15, 30, 45, 60,
-    120, 180, 240, 300, 360, 420,
-    480, 540, 600, 660, 720
-)
-
-val savedRefreshMinutes =
-    prefs.getInt("refreshMinutes_$appWidgetId", 15)
-
-val refreshLabel = TextView(this).apply {
-    textSize = 16f
-}
-
-val refreshSlider = SeekBar(this).apply {
-    max = refreshValues.size - 1
-
-    progress = refreshValues.indexOf(
-        savedRefreshMinutes
-    ).coerceAtLeast(0)
-}
-
-fun updateRefreshLabel() {
-    val minutes = refreshValues[refreshSlider.progress]
-
-    refreshLabel.text =
-        if (minutes < 60) {
-            "Opdateringsfrekvens: $minutes minutter"
-        } else {
-            val hours = minutes / 60
-            if (hours == 1) {
-                "Opdateringsfrekvens: 1 time"
-            } else {
-                "Opdateringsfrekvens: $hours timer"
-            }
-        }
-}
-
-refreshSlider.setOnSeekBarChangeListener(
-    object : SeekBar.OnSeekBarChangeListener {
-
-        override fun onProgressChanged(
-            seekBar: SeekBar?,
-            progress: Int,
-            fromUser: Boolean
-        ) {
-            updateRefreshLabel()
-        }
-
-        override fun onStartTrackingTouch(
-            seekBar: SeekBar?
-        ) {}
-
-        override fun onStopTrackingTouch(
-            seekBar: SeekBar?
-        ) {}
-    }
-)
-
-updateRefreshLabel()
-
-layout.addView(refreshLabel)
-layout.addView(refreshSlider)
-
-        layout.addView(Button(this).apply {
-            text = "Gem og opdater widget"
-
-            setOnClickListener {
-
-                val website = url.text.toString().trim()
-
-prefs.edit().apply {
-
-    if (website.isNotEmpty()) {
-
-        // Hjemmeside valgt:
-        // gem URL og fjern gammel HTML-fil
-        putString("url_$appWidgetId", website)
-remove("localUri_$appWidgetId")
-
-    } else if (localUri != null) {
-
-        // HTML-fil valgt:
-        // gem filen og fjern gammel hjemmeside
-        putString(
-    "localUri_$appWidgetId",
-    localUri.toString()
-)
-remove("url_$appWidgetId")
-    }
-
-    putBoolean(
-        "adblock",
-        adBlock.isChecked
-    )
-putInt(
-    "refreshMinutes_$appWidgetId",
-    refreshValues[refreshSlider.progress]
-)
-    apply()
-}
-
-                val refreshMinutes =
-    refreshValues[refreshSlider.progress]
-
-val request =
-    PeriodicWorkRequestBuilder<RefreshWorker>(
-        refreshMinutes.toLong(),
-        TimeUnit.MINUTES
-    ).setInputData(
-        androidx.work.workDataOf(
-            AppWidgetManager.EXTRA_APPWIDGET_ID to appWidgetId
         )
-    ).build()
 
-                WorkManager
-                    .getInstance(this@SetupActivity)
-                    .enqueueUniquePeriodicWork(
-                        "html-widget-refresh-$appWidgetId",
-ExistingPeriodicWorkPolicy.UPDATE,
-                        request
+        /*
+         * LOKAL HTML-FIL
+         */
+        layout.addView(
+            Button(this).apply {
+
+                text =
+                    "Vælg HTML-fil"
+
+                setOnClickListener {
+
+                    val intent =
+                        Intent(
+                            Intent.ACTION_OPEN_DOCUMENT
+                        ).apply {
+
+                            addCategory(
+                                Intent.CATEGORY_OPENABLE
+                            )
+
+                            type =
+                                "text/html"
+
+                            addFlags(
+                                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                                    Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+                            )
+                        }
+
+                    startActivityForResult(
+                        intent,
+                        42
                     )
-
-                if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-
-    HtmlWidgetProvider.refresh(
-        this@SetupActivity,
-        intArrayOf(appWidgetId)
-    )
-
-    val resultValue = Intent().apply {
-        putExtra(
-            AppWidgetManager.EXTRA_APPWIDGET_ID,
-            appWidgetId
-        )
-    }
-
-    setResult(
-        RESULT_OK,
-        resultValue
-    )
-    finish()
                 }
-                Toast.makeText(
-                    this@SetupActivity,
-                    "Gemt – HTML Widget er opdateret",
-                    Toast.LENGTH_LONG
-                ).show()
             }
-        })
+        )
+
+        /*
+         * ANNONCEBLOKERING
+         */
+        adBlock =
+            CheckBox(this).apply {
+
+                text =
+                    "Bloker reklamer og tracking"
+
+                isChecked =
+                    prefs.getBoolean(
+                        "adblock",
+                        true
+                    )
+            }
+
+        layout.addView(
+            adBlock
+        )
+
+        /*
+         * COOKIE-BANNERE
+         */
+        hideCookieBanners =
+            CheckBox(this).apply {
+
+                text =
+                    "Skjul cookie-bannere"
+
+                isChecked =
+                    prefs.getBoolean(
+                        "hideCookieBanners_$appWidgetId",
+                        prefs.getBoolean(
+                            "hideCookieBanners",
+                            true
+                        )
+                    )
+            }
+
+        layout.addView(
+            hideCookieBanners
+        )
+
+        layout.addView(
+            TextView(this).apply {
+
+                text =
+                    "Forsøger automatisk at fjerne kendte cookie- og samtykke-bannere fra website-widgetten."
+
+                textSize =
+                    13f
+
+                setPadding(
+                    10,
+                    0,
+                    10,
+                    20
+                )
+            }
+        )
+
+        /*
+         * OPDATERINGSINTERVAL
+         */
+        val refreshValues =
+            intArrayOf(
+                15,
+                30,
+                45,
+                60,
+                120,
+                180,
+                240,
+                300,
+                360,
+                420,
+                480,
+                540,
+                600,
+                660,
+                720
+            )
+
+        val savedRefreshMinutes =
+            prefs.getInt(
+                "refreshMinutes_$appWidgetId",
+                15
+            )
+
+        val refreshLabel =
+            TextView(this).apply {
+
+                textSize =
+                    16f
+            }
+
+        val refreshSlider =
+            SeekBar(this).apply {
+
+                max =
+                    refreshValues.size - 1
+
+                progress =
+                    refreshValues
+                        .indexOf(
+                            savedRefreshMinutes
+                        )
+                        .coerceAtLeast(0)
+            }
+
+        fun updateRefreshLabel() {
+
+            val minutes =
+                refreshValues[
+                    refreshSlider.progress
+                ]
+
+            refreshLabel.text =
+                if (
+                    minutes < 60
+                ) {
+
+                    "Opdateringsfrekvens: $minutes minutter"
+
+                } else {
+
+                    val hours =
+                        minutes / 60
+
+                    if (
+                        hours == 1
+                    ) {
+
+                        "Opdateringsfrekvens: 1 time"
+
+                    } else {
+
+                        "Opdateringsfrekvens: $hours timer"
+                    }
+                }
+        }
+
+        refreshSlider
+            .setOnSeekBarChangeListener(
+
+                object :
+                    SeekBar.OnSeekBarChangeListener {
+
+                    override fun onProgressChanged(
+                        seekBar: SeekBar?,
+                        progress: Int,
+                        fromUser: Boolean
+                    ) {
+
+                        updateRefreshLabel()
+                    }
+
+                    override fun onStartTrackingTouch(
+                        seekBar: SeekBar?
+                    ) {
+                    }
+
+                    override fun onStopTrackingTouch(
+                        seekBar: SeekBar?
+                    ) {
+                    }
+                }
+            )
+
+        updateRefreshLabel()
+
+        layout.addView(
+            refreshLabel
+        )
+
+        layout.addView(
+            refreshSlider
+        )
+
+        /*
+         * GEM
+         */
+        layout.addView(
+            Button(this).apply {
+
+                text =
+                    "Gem og opdater widget"
+
+                setOnClickListener {
+
+                    val website =
+                        url.text
+                            .toString()
+                            .trim()
+
+                    prefs.edit().apply {
+
+                        if (
+                            website.isNotEmpty()
+                        ) {
+
+                            /*
+                             * Hjemmeside valgt.
+                             */
+                            putString(
+                                "url_$appWidgetId",
+                                website
+                            )
+
+                            remove(
+                                "localUri_$appWidgetId"
+                            )
+
+                        } else if (
+                            localUri != null
+                        ) {
+
+                            /*
+                             * Lokal HTML-fil valgt.
+                             */
+                            putString(
+                                "localUri_$appWidgetId",
+                                localUri.toString()
+                            )
+
+                            remove(
+                                "url_$appWidgetId"
+                            )
+                        }
+
+                        putBoolean(
+                            "adblock",
+                            adBlock.isChecked
+                        )
+
+                        /*
+                         * Gemmes pr. widget.
+                         */
+                        putBoolean(
+                            "hideCookieBanners_$appWidgetId",
+                            hideCookieBanners.isChecked
+                        )
+
+                        /*
+                         * Gemmes også globalt lige nu,
+                         * så fil 1 allerede kan bruge
+                         * indstillingen.
+                         */
+                        putBoolean(
+                            "hideCookieBanners",
+                            hideCookieBanners.isChecked
+                        )
+
+                        putInt(
+                            "refreshMinutes_$appWidgetId",
+                            refreshValues[
+                                refreshSlider.progress
+                            ]
+                        )
+
+                        apply()
+                    }
+
+                    val refreshMinutes =
+                        refreshValues[
+                            refreshSlider.progress
+                        ]
+
+                    val request =
+                        PeriodicWorkRequestBuilder<RefreshWorker>(
+                            refreshMinutes.toLong(),
+                            TimeUnit.MINUTES
+                        )
+                            .setInputData(
+                                androidx.work.workDataOf(
+                                    AppWidgetManager.EXTRA_APPWIDGET_ID to
+                                        appWidgetId
+                                )
+                            )
+                            .build()
+
+                    WorkManager
+                        .getInstance(
+                            this@SetupActivity
+                        )
+                        .enqueueUniquePeriodicWork(
+                            "html-widget-refresh-$appWidgetId",
+                            ExistingPeriodicWorkPolicy.UPDATE,
+                            request
+                        )
+
+                    if (
+                        appWidgetId !=
+                        AppWidgetManager.INVALID_APPWIDGET_ID
+                    ) {
+
+                        HtmlWidgetProvider.refresh(
+                            this@SetupActivity,
+                            intArrayOf(
+                                appWidgetId
+                            )
+                        )
+
+                        val resultValue =
+                            Intent().apply {
+
+                                putExtra(
+                                    AppWidgetManager.EXTRA_APPWIDGET_ID,
+                                    appWidgetId
+                                )
+                            }
+
+                        setResult(
+                            RESULT_OK,
+                            resultValue
+                        )
+
+                        Toast.makeText(
+                            this@SetupActivity,
+                            "Gemt – HTML Widget er opdateret",
+                            Toast.LENGTH_LONG
+                        ).show()
+
+                        finish()
+                    }
+                }
+            }
+        )
 
         setContentView(
+
             ScrollView(this).apply {
-                addView(layout)
+
+                addView(
+                    layout
+                )
             }
         )
     }
@@ -282,23 +552,32 @@ ExistingPeriodicWorkPolicy.UPDATE,
         resultCode: Int,
         data: Intent?
     ) {
+
         super.onActivityResult(
             requestCode,
             resultCode,
             data
         )
 
-        if (requestCode == 42 && resultCode == RESULT_OK) {
+        if (
+            requestCode == 42 &&
+            resultCode == RESULT_OK
+        ) {
 
             data?.data?.let { uri ->
 
-                contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
+                contentResolver
+                    .takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
 
-                localUri = uri
-                url.setText("")
+                localUri =
+                    uri
+
+                url.setText(
+                    ""
+                )
 
                 Toast.makeText(
                     this,
