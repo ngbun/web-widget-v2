@@ -232,12 +232,16 @@ class HtmlWidgetProvider :
                 )
 
                 .remove(
-                    "lastSuccessfulUpdate_$id"
-                )
+    "lastSuccessfulUpdate_$id"
+)
 
-                .remove(
-                    "cropEnabled_$id"
-                )
+.remove(
+    "lastBitmapChecksum_$id"
+)
+
+.remove(
+    "cropEnabled_$id"
+)
 
                 .remove(
                     "cropCssX_$id"
