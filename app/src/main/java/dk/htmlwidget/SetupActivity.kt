@@ -145,8 +145,24 @@ class SetupActivity : Activity() {
                 setSingleLine(true)
             }
 
-        layout.addView(
+                layout.addView(
             url
+        )
+
+        /*
+         * GENBRUG HJEMMESIDE
+         */
+        layout.addView(
+            Button(this).apply {
+
+                text =
+                    "Genbrug hjemmeside fra anden widget"
+
+                setOnClickListener {
+
+                    showReusableWebsiteDialog()
+                }
+            }
         )
 
         /*
@@ -1606,6 +1622,80 @@ class SetupActivity : Activity() {
      * FIND ANDRE WEBSITE-WIDGETS
      * ----------------------------------------
      */
+    /*
+     * ----------------------------------------
+     * GENBRUG HJEMMESIDE FRA ANDEN WIDGET
+     * ----------------------------------------
+     */
+    private fun showReusableWebsiteDialog() {
+
+        val widgets =
+            findReusableWebsiteWidgets()
+
+        if (
+            widgets.isEmpty()
+        ) {
+
+            Toast.makeText(
+                this,
+                "Der er ingen andre website-widgets at genbruge",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        val names =
+            widgets
+                .map {
+                    it.second
+                }
+                .toTypedArray()
+
+        android.app.AlertDialog.Builder(this)
+            .setTitle(
+                "Vælg widget"
+            )
+            .setItems(
+                names
+            ) { _, position ->
+
+                val sourceWidgetId =
+                    widgets[position].first
+
+                val sourceUrl =
+                    prefs.getString(
+                        "url_$sourceWidgetId",
+                        ""
+                    )
+                        ?.trim()
+                        .orEmpty()
+
+                if (
+                    sourceUrl.isNotEmpty()
+                ) {
+
+                    url.setText(
+                        sourceUrl
+                    )
+
+                    localUri =
+                        null
+
+                    Toast.makeText(
+                        this,
+                        "Hjemmesiden er kopieret – vælg nu dit nye område",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+            .setNegativeButton(
+                "Annuller",
+                null
+            )
+            .show()
+    }
+     
     private fun findReusableWebsiteWidgets(): List<Pair<Int, String>> {
 
         val result =
