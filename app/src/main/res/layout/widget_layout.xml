@@ -13,6 +13,14 @@
         android:scaleType="fitXY"
         android:contentDescription="HTML side" />
 
+    <!-- Kant oven på widgetbilledet -->
+    <View
+        android:id="@+id/widget_border"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/widget_border_overlay"
+        android:visibility="gone" />
+
     <!-- Manuel opdatering -->
     <TextView
         android:id="@+id/widget_refresh"
