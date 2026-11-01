@@ -7,17 +7,24 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.RemoteViews
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 
-class HtmlWidgetProvider : AppWidgetProvider() {
+class HtmlWidgetProvider :
+    AppWidgetProvider() {
 
-
-    
     override fun onUpdate(
         context: Context,
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
-        refresh(context, appWidgetIds)
+
+        refresh(
+            context,
+            appWidgetIds
+        )
     }
 
     override fun onAppWidgetOptionsChanged(
@@ -26,6 +33,7 @@ class HtmlWidgetProvider : AppWidgetProvider() {
         appWidgetId: Int,
         newOptions: Bundle
     ) {
+
         super.onAppWidgetOptionsChanged(
             context,
             appWidgetManager,
@@ -35,32 +43,60 @@ class HtmlWidgetProvider : AppWidgetProvider() {
 
         refresh(
             context,
-            intArrayOf(appWidgetId)
+            intArrayOf(
+                appWidgetId
+            )
         )
     }
 
-    override fun onEnabled(context: Context) {
-    super.onEnabled(context)
-}
+    override fun onEnabled(
+        context: Context
+    ) {
 
-override fun onReceive(
-    context: Context,
-    intent: Intent
-) {
-    super.onReceive(context, intent)
+        super.onEnabled(
+            context
+        )
+    }
 
-    if (intent.action == "dk.htmlwidget.REFRESH_NOW") {
+    /*
+     * ----------------------------------------
+     * TRYK PÅ WIDGET
+     * ----------------------------------------
+     *
+     * 1 tryk:
+     * Opdater widgetten.
+     *
+     * 2 tryk inden for 800 ms:
+     * Åbn indstillingerne for præcis
+     * denne widget.
+     */
+    override fun onReceive(
+        context: Context,
+        intent: Intent
+    ) {
 
-        val appWidgetId =
-            intent.getIntExtra(
-                AppWidgetManager.EXTRA_APPWIDGET_ID,
-                AppWidgetManager.INVALID_APPWIDGET_ID
-            )
+        super.onReceive(
+            context,
+            intent
+        )
 
         if (
-            appWidgetId !=
-            AppWidgetManager.INVALID_APPWIDGET_ID
+            intent.action ==
+            ACTION_REFRESH_NOW
         ) {
+
+            val appWidgetId =
+                intent.getIntExtra(
+                    AppWidgetManager.EXTRA_APPWIDGET_ID,
+                    AppWidgetManager.INVALID_APPWIDGET_ID
+                )
+
+            if (
+                appWidgetId ==
+                AppWidgetManager.INVALID_APPWIDGET_ID
+            ) {
+                return
+            }
 
             val prefs =
                 context.getSharedPreferences(
@@ -68,7 +104,8 @@ override fun onReceive(
                     Context.MODE_PRIVATE
                 )
 
-            val now = System.currentTimeMillis()
+            val now =
+                System.currentTimeMillis()
 
             val lastClickTime =
                 prefs.getLong(
@@ -77,12 +114,22 @@ override fun onReceive(
                 )
 
             val isDoubleClick =
-                now - lastClickTime < 800
+                now - lastClickTime < 800L
 
-            if (isDoubleClick) {
+            if (
+                isDoubleClick
+            ) {
 
+                /*
+                 * Dobbelttryk.
+                 *
+                 * Fjern klik-tidspunktet, så næste
+                 * almindelige tryk starter på ny.
+                 */
                 prefs.edit()
-                    .remove("lastClickTime_$appWidgetId")
+                    .remove(
+                        "lastClickTime_$appWidgetId"
+                    )
                     .apply()
 
                 val setupIntent =
@@ -90,6 +137,7 @@ override fun onReceive(
                         context,
                         SetupActivity::class.java
                     ).apply {
+
                         flags =
                             Intent.FLAG_ACTIVITY_NEW_TASK
 
@@ -99,10 +147,15 @@ override fun onReceive(
                         )
                     }
 
-                context.startActivity(setupIntent)
+                context.startActivity(
+                    setupIntent
+                )
 
             } else {
 
+                /*
+                 * Enkelttryk.
+                 */
                 prefs.edit()
                     .putLong(
                         "lastClickTime_$appWidgetId",
@@ -112,54 +165,315 @@ override fun onReceive(
 
                 refresh(
                     context,
-                    intArrayOf(appWidgetId)
+                    intArrayOf(
+                        appWidgetId
+                    )
                 )
             }
         }
     }
-}
-override fun onDeleted(
-    context: Context,
-    appWidgetIds: IntArray
-) {
-    super.onDeleted(context, appWidgetIds)
 
-    val workManager =
-        androidx.work.WorkManager.getInstance(context)
+    /*
+     * ----------------------------------------
+     * WIDGET SLETTES
+     * ----------------------------------------
+     *
+     * Her rydder vi ALT op, som tilhører
+     * den konkrete widget.
+     */
+    override fun onDeleted(
+        context: Context,
+        appWidgetIds: IntArray
+    ) {
 
-    val prefs =
-        context.getSharedPreferences(
-            "settings",
-            Context.MODE_PRIVATE
+        super.onDeleted(
+            context,
+            appWidgetIds
         )
 
-    appWidgetIds.forEach { id ->
+        val workManager =
+            WorkManager.getInstance(
+                context
+            )
 
-        workManager.cancelUniqueWork(
-            "html-widget-refresh-$id"
-        )
+        val prefs =
+            context.getSharedPreferences(
+                "settings",
+                Context.MODE_PRIVATE
+            )
 
-        workManager.cancelUniqueWork(
-            "website-refresh-$id"
-        )
+        appWidgetIds.forEach { id ->
 
-        prefs.edit()
-            .remove("url_$id")
-            .remove("localUri_$id")
-            .remove("refreshMinutes_$id")
-            .apply()
+            /*
+             * Stop planlagte/oprettede jobs.
+             */
+            workManager.cancelUniqueWork(
+                "html-widget-refresh-$id"
+            )
+
+            workManager.cancelUniqueWork(
+                "website-refresh-$id"
+            )
+
+            /*
+             * Fjern alle indstillinger og
+             * debug-værdier for denne widget.
+             */
+            prefs.edit()
+
+                /*
+                 * Grundindstillinger.
+                 */
+                .remove(
+                    "url_$id"
+                )
+
+                .remove(
+                    "localUri_$id"
+                )
+
+                .remove(
+                    "refreshMinutes_$id"
+                )
+
+                .remove(
+                    "hideCookieBanners_$id"
+                )
+
+                /*
+                 * Klik.
+                 */
+                .remove(
+                    "lastClickTime_$id"
+                )
+
+                /*
+                 * Seneste vellykkede opdatering.
+                 */
+                .remove(
+                    "lastSuccessfulUpdate_$id"
+                )
+
+                /*
+                 * Crop aktiveret.
+                 */
+                .remove(
+                    "cropEnabled_$id"
+                )
+
+                /*
+                 * CSS-koordinater.
+                 */
+                .remove(
+                    "cropCssX_$id"
+                )
+
+                .remove(
+                    "cropCssY_$id"
+                )
+
+                .remove(
+                    "cropCssWidth_$id"
+                )
+
+                .remove(
+                    "cropCssHeight_$id"
+                )
+
+                /*
+                 * CSS viewport.
+                 */
+                .remove(
+                    "cropCssViewportWidth_$id"
+                )
+
+                .remove(
+                    "cropCssViewportHeight_$id"
+                )
+
+                .remove(
+                    "cropCssDocumentWidth_$id"
+                )
+
+                .remove(
+                    "cropCssDocumentHeight_$id"
+                )
+
+                /*
+                 * Android/WebView viewport.
+                 */
+                .remove(
+                    "cropViewportWidth_$id"
+                )
+
+                .remove(
+                    "cropViewportHeight_$id"
+                )
+
+                .remove(
+                    "cropWebScale_$id"
+                )
+
+                /*
+                 * Valgt område.
+                 */
+                .remove(
+                    "cropSelectionWidth_$id"
+                )
+
+                .remove(
+                    "cropSelectionHeight_$id"
+                )
+
+                /*
+                 * Scroll-position.
+                 */
+                .remove(
+                    "websiteScrollX_$id"
+                )
+
+                .remove(
+                    "websiteScrollY_$id"
+                )
+
+                /*
+                 * Den røde rammes position
+                 * og størrelse.
+                 */
+                .remove(
+                    "cropFrameX_$id"
+                )
+
+                .remove(
+                    "cropFrameY_$id"
+                )
+
+                .remove(
+                    "cropFrameWidth_$id"
+                )
+
+                .remove(
+                    "cropFrameHeight_$id"
+                )
+
+                /*
+                 * Worker debug-data.
+                 */
+                .remove(
+                    "cropBitmapX_$id"
+                )
+
+                .remove(
+                    "cropBitmapY_$id"
+                )
+
+                .remove(
+                    "cropWorkerCssViewportWidth_$id"
+                )
+
+                .remove(
+                    "cropWorkerCssViewportHeight_$id"
+                )
+
+                .remove(
+                    "cropWorkerPixelsPerCssX_$id"
+                )
+
+                .remove(
+                    "cropWorkerPixelsPerCssY_$id"
+                )
+
+                /*
+                 * Ældre crop-data.
+                 *
+                 * Disse kan ligge tilbage fra
+                 * tidligere versioner af appen.
+                 */
+                .remove(
+                    "cropDocumentX_$id"
+                )
+
+                .remove(
+                    "cropDocumentY_$id"
+                )
+
+                .remove(
+                    "cropDocumentSelectionWidth_$id"
+                )
+
+                .remove(
+                    "cropDocumentSelectionHeight_$id"
+                )
+
+                .remove(
+                    "cropWorkerWebScale_$id"
+                )
+
+                .remove(
+                    "cropRelativeX_$id"
+                )
+
+                .remove(
+                    "cropRelativeY_$id"
+                )
+
+                .remove(
+                    "cropRelativeWidth_$id"
+                )
+
+                .remove(
+                    "cropRelativeHeight_$id"
+                )
+
+                .remove(
+                    "cropScrollX_$id"
+                )
+
+                .remove(
+                    "cropScrollY_$id"
+                )
+
+                .remove(
+                    "cropXRatio_$id"
+                )
+
+                .remove(
+                    "cropYRatio_$id"
+                )
+
+                .remove(
+                    "cropScale_$id"
+                )
+
+                .apply()
+        }
     }
-}
+
     companion object {
 
+        private const val ACTION_REFRESH_NOW =
+            "dk.htmlwidget.REFRESH_NOW"
+
+        /*
+         * ----------------------------------------
+         * OPDATER WIDGET
+         * ----------------------------------------
+         */
         fun refresh(
             context: Context,
             ids: IntArray
         ) {
-            if (ids.isEmpty()) return
+
+            if (
+                ids.isEmpty()
+            ) {
+                return
+            }
 
             val manager =
-                AppWidgetManager.getInstance(context)
+                AppWidgetManager.getInstance(
+                    context
+                )
 
             val prefs =
                 context.getSharedPreferences(
@@ -169,44 +483,60 @@ override fun onDeleted(
 
             ids.forEach { id ->
 
-val clickIntent =
-    Intent(
-        context,
-        HtmlWidgetProvider::class.java
-    ).apply {
-        action = "dk.htmlwidget.REFRESH_NOW"
+                /*
+                 * --------------------------------
+                 * TRYK-HANDLING
+                 * --------------------------------
+                 */
+                val clickIntent =
+                    Intent(
+                        context,
+                        HtmlWidgetProvider::class.java
+                    ).apply {
 
-        putExtra(
-            AppWidgetManager.EXTRA_APPWIDGET_ID,
-            id
-        )
-    }
+                        action =
+                            ACTION_REFRESH_NOW
 
-val clickPendingIntent =
-    PendingIntent.getBroadcast(
-        context,
-        id,
-        clickIntent,
-        PendingIntent.FLAG_UPDATE_CURRENT or
-        PendingIntent.FLAG_IMMUTABLE
-    )
+                        putExtra(
+                            AppWidgetManager.EXTRA_APPWIDGET_ID,
+                            id
+                        )
+                    }
 
-val clickViews =
-    RemoteViews(
-        context.packageName,
-        R.layout.widget_layout
-    )
+                val clickPendingIntent =
+                    PendingIntent.getBroadcast(
+                        context,
+                        id,
+                        clickIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or
+                            PendingIntent.FLAG_IMMUTABLE
+                    )
 
-clickViews.setOnClickPendingIntent(
-    R.id.widget_image,
-    clickPendingIntent
-)
+                val clickViews =
+                    RemoteViews(
+                        context.packageName,
+                        R.layout.widget_layout
+                    )
 
-manager.updateAppWidget(
-    id,
-    clickViews
-)
-                
+                clickViews
+                    .setOnClickPendingIntent(
+                        R.id.widget_image,
+                        clickPendingIntent
+                    )
+
+                /*
+                 * VIGTIGT:
+                 *
+                 * Vi ændrer kun click-handleren.
+                 * Det eksisterende billede bliver
+                 * stående, mens en ny version
+                 * renderes.
+                 */
+                manager.updateAppWidget(
+                    id,
+                    clickViews
+                )
+
                 val website =
                     prefs.getString(
                         "url_$id",
@@ -220,42 +550,47 @@ manager.updateAppWidget(
                     )
 
                 /*
+                 * --------------------------------
                  * HJEMMESIDE
-                 *
-                 * Vi overskriver IKKE billedet.
-                 * Det eksisterende billede bliver stående.
-                 *
-                 * Et tryk på widgetten åbner
-                 * WebsiteRenderActivity.
+                 * --------------------------------
                  */
-                
-                
+                if (
+                    !website.isNullOrBlank()
+                ) {
 
-                if (!website.isNullOrBlank()) {
+                    val request =
+                        OneTimeWorkRequestBuilder<
+                            WebsiteRefreshWorker
+                        >()
+                            .setInputData(
+                                workDataOf(
+                                    AppWidgetManager.EXTRA_APPWIDGET_ID to
+                                        id
+                                )
+                            )
+                            .build()
 
-    val request =
-        androidx.work.OneTimeWorkRequestBuilder<WebsiteRefreshWorker>()
-            .setInputData(
-                androidx.work.workDataOf(
-                    AppWidgetManager.EXTRA_APPWIDGET_ID to id
-                )
-            )
-            .build()
+                    WorkManager
+                        .getInstance(
+                            context
+                        )
+                        .enqueueUniqueWork(
+                            "website-refresh-$id",
+                            ExistingWorkPolicy.REPLACE,
+                            request
+                        )
 
-    androidx.work.WorkManager
-        .getInstance(context)
-        .enqueueUniqueWork(
-            "website-refresh-$id",
-            androidx.work.ExistingWorkPolicy.REPLACE,
-            request
-        )
-
-    return@forEach
+                    return@forEach
                 }
+
                 /*
+                 * --------------------------------
                  * LOKAL HTML
+                 * --------------------------------
                  */
-                if (!localUri.isNullOrBlank()) {
+                if (
+                    !localUri.isNullOrBlank()
+                ) {
 
                     HtmlRenderService.start(
                         context,
