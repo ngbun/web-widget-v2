@@ -405,8 +405,38 @@ class SetupActivity : Activity() {
             refreshLabel
         )
 
-        layout.addView(
+                layout.addView(
             refreshSlider
+        )
+
+        /*
+         * PREVIEW
+         */
+        layout.addView(
+            Button(this).apply {
+
+                text =
+                    "Vis preview"
+
+                setOnClickListener {
+
+                    val previewIntent =
+                        Intent(
+                            this@SetupActivity,
+                            WidgetPreviewActivity::class.java
+                        ).apply {
+
+                            putExtra(
+                                AppWidgetManager.EXTRA_APPWIDGET_ID,
+                                appWidgetId
+                            )
+                        }
+
+                    startActivity(
+                        previewIntent
+                    )
+                }
+            }
         )
 
         /*
