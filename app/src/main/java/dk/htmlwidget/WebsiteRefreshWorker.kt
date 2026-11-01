@@ -18,6 +18,9 @@ import android.webkit.WebViewClient
 import android.widget.RemoteViews
 import androidx.work.Worker
 import androidx.work.WorkerParameters
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
@@ -45,6 +48,12 @@ class WebsiteRefreshWorker(
             return Result.success()
         }
 
+        val manualRefresh =
+            inputData.getBoolean(
+                "manualRefresh",
+                false
+            )
+
         val prefs =
             applicationContext.getSharedPreferences(
                 "settings",
@@ -61,8 +70,8 @@ class WebsiteRefreshWorker(
             address.isNullOrBlank() ||
             (
                 !address.startsWith("https://") &&
-                !address.startsWith("http://")
-            )
+                    !address.startsWith("http://")
+                )
         ) {
             return Result.success()
         }
@@ -78,7 +87,8 @@ class WebsiteRefreshWorker(
                 renderWebsite(
                     appWidgetId,
                     address,
-                    latch
+                    latch,
+                    manualRefresh
                 )
         }
 
@@ -101,7 +111,8 @@ class WebsiteRefreshWorker(
     private fun renderWebsite(
         appWidgetId: Int,
         address: String,
-        latch: CountDownLatch
+        latch: CountDownLatch,
+        manualRefresh: Boolean
     ): Boolean {
 
         val context =
@@ -176,7 +187,7 @@ class WebsiteRefreshWorker(
                     AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
                     300
                 ) * density
-            ).roundToInt()
+                ).roundToInt()
                 .coerceAtLeast(1)
 
         val widgetHeight =
@@ -185,7 +196,7 @@ class WebsiteRefreshWorker(
                     AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,
                     180
                 ) * density
-            ).roundToInt()
+                ).roundToInt()
                 .coerceAtLeast(1)
 
         val renderWidth =
@@ -272,6 +283,52 @@ class WebsiteRefreshWorker(
             latch.countDown()
         }
 
+        fun showFinishedStatus() {
+
+            if (!manualRefresh) {
+                return
+            }
+
+            val showStatus =
+                prefs.getBoolean(
+                    "showUpdateStatus_$appWidgetId",
+                    true
+                )
+
+            if (!showStatus) {
+                return
+            }
+
+            val time =
+                SimpleDateFormat(
+                    "HH:mm",
+                    Locale.getDefault()
+                ).format(
+                    Date()
+                )
+
+            val views =
+                RemoteViews(
+                    context.packageName,
+                    R.layout.widget_layout
+                )
+
+            views.setTextViewText(
+                R.id.widget_status,
+                "Opdateret $time"
+            )
+
+            views.setViewVisibility(
+                R.id.widget_status,
+                View.VISIBLE
+            )
+
+            manager.partiallyUpdateAppWidget(
+                appWidgetId,
+                views
+            )
+        }
+
         fun drawWidget(
             workerCssViewportWidth: Float,
             workerCssViewportHeight: Float
@@ -306,7 +363,7 @@ class WebsiteRefreshWorker(
                         (
                             cropCssX *
                                 pixelsPerCssX
-                        ).roundToInt()
+                            ).roundToInt()
                             .coerceAtLeast(0)
 
                     } else {
@@ -319,7 +376,7 @@ class WebsiteRefreshWorker(
                         (
                             cropCssY *
                                 pixelsPerCssY
-                        ).roundToInt()
+                            ).roundToInt()
                             .coerceAtLeast(0)
 
                     } else {
@@ -335,7 +392,7 @@ class WebsiteRefreshWorker(
                         (
                             cropCssWidth *
                                 pixelsPerCssX
-                        ).roundToInt()
+                            ).roundToInt()
                             .coerceAtLeast(1)
 
                     } else {
@@ -352,7 +409,7 @@ class WebsiteRefreshWorker(
                         (
                             cropCssHeight *
                                 pixelsPerCssY
-                        ).roundToInt()
+                            ).roundToInt()
                             .coerceAtLeast(1)
 
                     } else {
@@ -419,6 +476,9 @@ class WebsiteRefreshWorker(
                     views
                 )
 
+                /*
+                 * Gem tidspunkt og debug-data.
+                 */
                 prefs.edit()
 
                     .putInt(
@@ -458,6 +518,25 @@ class WebsiteRefreshWorker(
 
                     .apply()
 
+                /*
+                 * Kun manuel opdatering viser
+                 * "Opdateret HH:mm".
+                 */
+                showFinishedStatus()
+
+                /*
+                 * Frigiv evt. ekstra bitmap.
+                 */
+                if (
+                    finalBitmap !== selectedBitmap
+                ) {
+
+                    try {
+                        selectedBitmap.recycle()
+                    } catch (_: Exception) {
+                    }
+                }
+
             } catch (_: Exception) {
             } finally {
 
@@ -466,9 +545,16 @@ class WebsiteRefreshWorker(
         }
 
         /*
-         * Fjerner kendte cookie-/samtykke-bannere.
+         * ----------------------------------------
+         * COOKIE-BANNERE
+         * ----------------------------------------
          *
-         * Vi ændrer IKKE scroll eller CSS-koordinaterne.
+         * Fjerner kendte cookie- og
+         * samtykke-bannere.
+         *
+         * Vigtigt:
+         * Vi ændrer IKKE scroll eller
+         * crop-koordinater.
          */
         fun hideCookieBanners(
             after: () -> Unit
@@ -483,8 +569,11 @@ class WebsiteRefreshWorker(
 
             val hideCookieBanners =
                 prefs.getBoolean(
-                    "hideCookieBanners",
-                    true
+                    "hideCookieBanners_$appWidgetId",
+                    prefs.getBoolean(
+                        "hideCookieBanners",
+                        true
+                    )
                 )
 
             if (!hideCookieBanners) {
@@ -551,6 +640,16 @@ class WebsiteRefreshWorker(
             }
         }
 
+        /*
+         * ----------------------------------------
+         * CSS VIEWPORT
+         * ----------------------------------------
+         *
+         * Dette er vores fungerende CSS-baserede
+         * crop-metode.
+         *
+         * Den skal ikke ændres.
+         */
         fun readWorkerCssViewport() {
 
             val currentWeb =
@@ -631,7 +730,9 @@ class WebsiteRefreshWorker(
             val display =
                 virtualDisplay?.display
                     ?: run {
+
                         cleanup()
+
                         return false
                     }
 
@@ -653,21 +754,29 @@ class WebsiteRefreshWorker(
 
             web!!.settings.apply {
 
-                javaScriptEnabled = true
+                javaScriptEnabled =
+                    true
 
-                domStorageEnabled = true
+                domStorageEnabled =
+                    true
 
-                loadsImagesAutomatically = true
+                loadsImagesAutomatically =
+                    true
 
-                useWideViewPort = true
+                useWideViewPort =
+                    true
 
-                loadWithOverviewMode = false
+                loadWithOverviewMode =
+                    false
 
-                builtInZoomControls = false
+                builtInZoomControls =
+                    false
 
-                displayZoomControls = false
+                displayZoomControls =
+                    false
 
-                offscreenPreRaster = true
+                offscreenPreRaster =
+                    true
             }
 
             presentation!!.setContentView(
@@ -677,7 +786,8 @@ class WebsiteRefreshWorker(
             presentation!!.show()
 
             web!!.webViewClient =
-                object : WebViewClient() {
+                object :
+                    WebViewClient() {
 
                     override fun shouldInterceptRequest(
                         view: WebView?,
@@ -692,20 +802,22 @@ class WebsiteRefreshWorker(
 
                         if (!adBlockEnabled) {
 
-                            return super.shouldInterceptRequest(
-                                view,
-                                request
-                            )
+                            return super
+                                .shouldInterceptRequest(
+                                    view,
+                                    request
+                                )
                         }
 
                         val host =
                             request?.url
                                 ?.host
                                 ?.lowercase()
-                                ?: return super.shouldInterceptRequest(
-                                    view,
-                                    request
-                                )
+                                ?: return super
+                                    .shouldInterceptRequest(
+                                        view,
+                                        request
+                                    )
 
                         val blocked =
                             listOf(
@@ -727,7 +839,9 @@ class WebsiteRefreshWorker(
                                     )
                             }
 
-                        return if (blocked) {
+                        return if (
+                            blocked
+                        ) {
 
                             android.webkit.WebResourceResponse(
                                 "text/plain",
@@ -737,10 +851,11 @@ class WebsiteRefreshWorker(
 
                         } else {
 
-                            super.shouldInterceptRequest(
-                                view,
-                                request
-                            )
+                            super
+                                .shouldInterceptRequest(
+                                    view,
+                                    request
+                                )
                         }
                     }
 
@@ -750,8 +865,11 @@ class WebsiteRefreshWorker(
                     ) {
 
                         /*
-                         * Beholder vores fungerende
-                         * ventetid på 2 sekunder.
+                         * VIGTIGT:
+                         *
+                         * Vi beholder præcis vores
+                         * fungerende ventetid på
+                         * 2000 ms.
                          */
                         mainHandler.postDelayed({
 
@@ -768,6 +886,9 @@ class WebsiteRefreshWorker(
                 address
             )
 
+            /*
+             * Sikkerhedstimeout.
+             */
             mainHandler.postDelayed({
 
                 if (!completed) {
@@ -782,6 +903,7 @@ class WebsiteRefreshWorker(
         } catch (_: Exception) {
 
             cleanup()
+
             false
         }
     }
