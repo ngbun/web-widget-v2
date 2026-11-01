@@ -15,6 +15,20 @@
         android:contentDescription="HTML side"
         android:background="#FFFFFF" />
 
+    <!-- Manuel opdatering -->
+    <TextView
+        android:id="@+id/widget_refresh"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="6dp"
+        android:gravity="center"
+        android:background="#B3000000"
+        android:text="↻"
+        android:textColor="#FFFFFF"
+        android:textSize="20sp"
+        android:visibility="visible" />
+
     <TextView
         android:id="@+id/widget_status"
         android:layout_width="wrap_content"
