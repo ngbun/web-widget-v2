@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
@@ -64,10 +65,13 @@ open class HtmlWidgetProvider :
      * TRYK PÅ WIDGET
      * ----------------------------------------
      *
-     * 1 tryk:
+     * Tryk på billedet:
+     * Åbn hjemmesiden.
+     *
+     * Tryk på ↻:
      * Manuel opdatering.
      *
-     * 2 tryk inden for 800 ms:
+     * 2 tryk på ↻ inden for 800 ms:
      * Åbn indstillinger.
      */
     override fun onReceive(
@@ -80,6 +84,67 @@ open class HtmlWidgetProvider :
             intent
         )
 
+        /*
+         * ----------------------------------------
+         * ÅBN HJEMMESIDE
+         * ----------------------------------------
+         */
+        if (
+            intent.action ==
+            ACTION_OPEN_WEBSITE
+        ) {
+
+            val appWidgetId =
+                intent.getIntExtra(
+                    AppWidgetManager.EXTRA_APPWIDGET_ID,
+                    AppWidgetManager.INVALID_APPWIDGET_ID
+                )
+
+            if (
+                appWidgetId !=
+                AppWidgetManager.INVALID_APPWIDGET_ID
+            ) {
+
+                val prefs =
+                    context.getSharedPreferences(
+                        "settings",
+                        Context.MODE_PRIVATE
+                    )
+
+                val website =
+                    prefs.getString(
+                        "url_$appWidgetId",
+                        null
+                    )
+
+                if (
+                    !website.isNullOrBlank()
+                ) {
+
+                    val openIntent =
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse(website)
+                        ).apply {
+
+                            flags =
+                                Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+
+                    context.startActivity(
+                        openIntent
+                    )
+                }
+            }
+
+            return
+        }
+
+        /*
+         * ----------------------------------------
+         * MANUEL OPDATERING / INDSTILLINGER
+         * ----------------------------------------
+         */
         if (
             intent.action ==
             ACTION_REFRESH_NOW
@@ -126,12 +191,6 @@ open class HtmlWidgetProvider :
                     )
                     .apply()
 
-                /*
-                 * Hvis første tryk nåede at vise
-                 * "Opdaterer…", skjuler vi teksten
-                 * igen, når det viser sig at være
-                 * et dobbelttryk.
-                 */
                 hideStatus(
                     context,
                     appWidgetId
@@ -165,9 +224,6 @@ open class HtmlWidgetProvider :
                     )
                     .apply()
 
-                /*
-                 * Manuel opdatering.
-                 */
                 refresh(
                     context,
                     intArrayOf(appWidgetId),
@@ -232,16 +288,16 @@ open class HtmlWidgetProvider :
                 )
 
                 .remove(
-    "lastSuccessfulUpdate_$id"
-)
+                    "lastSuccessfulUpdate_$id"
+                )
 
-.remove(
-    "lastBitmapChecksum_$id"
-)
+                .remove(
+                    "lastBitmapChecksum_$id"
+                )
 
-.remove(
-    "cropEnabled_$id"
-)
+                .remove(
+                    "cropEnabled_$id"
+                )
 
                 .remove(
                     "cropCssX_$id"
@@ -412,6 +468,9 @@ open class HtmlWidgetProvider :
         private const val ACTION_REFRESH_NOW =
             "dk.htmlwidget.REFRESH_NOW"
 
+        private const val ACTION_OPEN_WEBSITE =
+            "dk.htmlwidget.OPEN_WEBSITE"
+
         /*
          * ----------------------------------------
          * VIS "OPDATERER…"
@@ -428,12 +487,6 @@ open class HtmlWidgetProvider :
                     Context.MODE_PRIVATE
                 )
 
-            /*
-             * Standard = slået til.
-             *
-             * I næste SetupActivity-fil får
-             * brugeren en checkbox til dette.
-             */
             val showStatus =
                 prefs.getBoolean(
                     "showUpdateStatus_$appWidgetId",
@@ -501,12 +554,6 @@ open class HtmlWidgetProvider :
          * ----------------------------------------
          * OPDATER
          * ----------------------------------------
-         *
-         * manualRefresh = true:
-         * Vis "Opdaterer…".
-         *
-         * manualRefresh = false:
-         * Baggrundsopdatering uden status.
          */
         fun refresh(
             context: Context,
@@ -534,7 +581,7 @@ open class HtmlWidgetProvider :
             ids.forEach { id ->
 
                 /*
-                 * Klik-handler.
+                 * ↻ OPDATER / DOBBELTTRYK INDSTILLINGER
                  */
                 val clickIntent =
                     Intent(
@@ -560,6 +607,33 @@ open class HtmlWidgetProvider :
                             PendingIntent.FLAG_IMMUTABLE
                     )
 
+                /*
+                 * TRYK PÅ BILLEDET = ÅBN HJEMMESIDE
+                 */
+                val openWebsiteIntent =
+                    Intent(
+                        context,
+                        HtmlWidgetProvider::class.java
+                    ).apply {
+
+                        action =
+                            ACTION_OPEN_WEBSITE
+
+                        putExtra(
+                            AppWidgetManager.EXTRA_APPWIDGET_ID,
+                            id
+                        )
+                    }
+
+                val openWebsitePendingIntent =
+                    PendingIntent.getBroadcast(
+                        context,
+                        id + 100000,
+                        openWebsiteIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or
+                            PendingIntent.FLAG_IMMUTABLE
+                    )
+
                 val clickViews =
                     RemoteViews(
                         context.packageName,
@@ -567,16 +641,16 @@ open class HtmlWidgetProvider :
                     )
 
                 clickViews
-    .setOnClickPendingIntent(
-        R.id.widget_image,
-        clickPendingIntent
-    )
+                    .setOnClickPendingIntent(
+                        R.id.widget_image,
+                        openWebsitePendingIntent
+                    )
 
-clickViews
-    .setOnClickPendingIntent(
-        R.id.widget_refresh,
-        clickPendingIntent
-    )
+                clickViews
+                    .setOnClickPendingIntent(
+                        R.id.widget_refresh,
+                        clickPendingIntent
+                    )
 
                 manager.partiallyUpdateAppWidget(
                     id,
