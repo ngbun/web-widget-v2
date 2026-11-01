@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
@@ -32,9 +33,11 @@
             android:name=".HtmlRenderService"
             android:exported="false" />
 
+        <!-- 3×2 - eksisterende widget -->
         <receiver
             android:name=".HtmlWidgetProvider"
             android:exported="true">
+
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="dk.htmlwidget.REFRESH" />
@@ -43,6 +46,36 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/html_widget_info" />
+        </receiver>
+
+        <!-- 1×1 -->
+        <receiver
+            android:name=".HtmlWidgetProvider1x1"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="dk.htmlwidget.REFRESH" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/html_widget_info_1x1" />
+        </receiver>
+
+        <!-- 2×2 -->
+        <receiver
+            android:name=".HtmlWidgetProvider2x2"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="dk.htmlwidget.REFRESH" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/html_widget_info_2x2" />
         </receiver>
 
     </application>
