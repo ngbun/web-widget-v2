@@ -28,14 +28,34 @@ class SetupActivity : Activity() {
     private lateinit var hideCookieBanners: CheckBox
     private lateinit var showUpdateStatus: CheckBox
 
+    private lateinit var refreshSlider: SeekBar
+    private lateinit var refreshLabel: TextView
+
+    private val refreshValues =
+        intArrayOf(
+            15,
+            30,
+            45,
+            60,
+            120,
+            180,
+            240,
+            300,
+            360,
+            420,
+            480,
+            540,
+            600,
+            660,
+            720
+        )
+
     private var appWidgetId =
         AppWidgetManager.INVALID_APPWIDGET_ID
 
-    /*
-     * Request codes.
-     */
     private val chooseHtmlRequest = 42
     private val exportBackupRequest = 43
+    private val importBackupRequest = 44
 
     override fun onCreate(
         savedInstanceState: Bundle?
@@ -102,7 +122,9 @@ class SetupActivity : Activity() {
                 setSingleLine(true)
             }
 
-        layout.addView(url)
+        layout.addView(
+            url
+        )
 
         /*
          * VÆLG OMRÅDE
@@ -120,7 +142,9 @@ class SetupActivity : Activity() {
                             .toString()
                             .trim()
 
-                    if (website.isEmpty()) {
+                    if (
+                        website.isEmpty()
+                    ) {
 
                         Toast.makeText(
                             this@SetupActivity,
@@ -131,9 +155,6 @@ class SetupActivity : Activity() {
                         return@setOnClickListener
                     }
 
-                    /*
-                     * Gem URL inden crop-vinduet åbnes.
-                     */
                     prefs.edit()
                         .putString(
                             "url_$appWidgetId",
@@ -302,38 +323,19 @@ class SetupActivity : Activity() {
         /*
          * OPDATERINGSINTERVAL
          */
-        val refreshValues =
-            intArrayOf(
-                15,
-                30,
-                45,
-                60,
-                120,
-                180,
-                240,
-                300,
-                360,
-                420,
-                480,
-                540,
-                600,
-                660,
-                720
-            )
-
         val savedRefreshMinutes =
             prefs.getInt(
                 "refreshMinutes_$appWidgetId",
                 15
             )
 
-        val refreshLabel =
+        refreshLabel =
             TextView(this).apply {
 
                 textSize = 16f
             }
 
-        val refreshSlider =
+        refreshSlider =
             SeekBar(this).apply {
 
                 max =
@@ -346,34 +348,6 @@ class SetupActivity : Activity() {
                         )
                         .coerceAtLeast(0)
             }
-
-        fun updateRefreshLabel() {
-
-            val minutes =
-                refreshValues[
-                    refreshSlider.progress
-                ]
-
-            refreshLabel.text =
-                if (minutes < 60) {
-
-                    "Opdateringsfrekvens: $minutes minutter"
-
-                } else {
-
-                    val hours =
-                        minutes / 60
-
-                    if (hours == 1) {
-
-                        "Opdateringsfrekvens: 1 time"
-
-                    } else {
-
-                        "Opdateringsfrekvens: $hours timer"
-                    }
-                }
-        }
 
         refreshSlider
             .setOnSeekBarChangeListener(
@@ -436,7 +410,7 @@ class SetupActivity : Activity() {
             TextView(this).apply {
 
                 text =
-                    "Gem indstillingerne for denne widget som en backup-fil."
+                    "Gem eller gendan indstillingerne for denne widget."
 
                 textSize = 13f
 
@@ -449,6 +423,9 @@ class SetupActivity : Activity() {
             }
         )
 
+        /*
+         * EKSPORT
+         */
         layout.addView(
             Button(this).apply {
 
@@ -458,6 +435,22 @@ class SetupActivity : Activity() {
                 setOnClickListener {
 
                     exportBackup()
+                }
+            }
+        )
+
+        /*
+         * IMPORT
+         */
+        layout.addView(
+            Button(this).apply {
+
+                text =
+                    "Importer backup"
+
+                setOnClickListener {
+
+                    importBackup()
                 }
             }
         )
@@ -473,155 +466,13 @@ class SetupActivity : Activity() {
 
                 setOnClickListener {
 
-                    val website =
-                        url.text
-                            .toString()
-                            .trim()
-
-                    prefs.edit().apply {
-
-                        if (
-                            website.isNotEmpty()
-                        ) {
-
-                            putString(
-                                "url_$appWidgetId",
-                                website
-                            )
-
-                            remove(
-                                "localUri_$appWidgetId"
-                            )
-
-                        } else if (
-                            localUri != null
-                        ) {
-
-                            putString(
-                                "localUri_$appWidgetId",
-                                localUri.toString()
-                            )
-
-                            remove(
-                                "url_$appWidgetId"
-                            )
-                        }
-
-                        /*
-                         * Reklameblokering.
-                         */
-                        putBoolean(
-                            "adblock",
-                            adBlock.isChecked
-                        )
-
-                        /*
-                         * Cookie-fjernelse.
-                         */
-                        putBoolean(
-                            "hideCookieBanners_$appWidgetId",
-                            hideCookieBanners.isChecked
-                        )
-
-                        /*
-                         * Global kompatibilitetsværdi.
-                         */
-                        putBoolean(
-                            "hideCookieBanners",
-                            hideCookieBanners.isChecked
-                        )
-
-                        /*
-                         * Opdateringsstatus.
-                         */
-                        putBoolean(
-                            "showUpdateStatus_$appWidgetId",
-                            showUpdateStatus.isChecked
-                        )
-
-                        /*
-                         * Opdateringsinterval.
-                         */
-                        putInt(
-                            "refreshMinutes_$appWidgetId",
-                            refreshValues[
-                                refreshSlider.progress
-                            ]
-                        )
-
-                        apply()
-                    }
-
-                    val refreshMinutes =
-                        refreshValues[
-                            refreshSlider.progress
-                        ]
-
-                    val request =
-                        PeriodicWorkRequestBuilder<
-                            RefreshWorker
-                        >(
-                            refreshMinutes.toLong(),
-                            TimeUnit.MINUTES
-                        )
-                            .setInputData(
-                                androidx.work.workDataOf(
-                                    AppWidgetManager.EXTRA_APPWIDGET_ID to
-                                        appWidgetId
-                                )
-                            )
-                            .build()
-
-                    WorkManager
-                        .getInstance(
-                            this@SetupActivity
-                        )
-                        .enqueueUniquePeriodicWork(
-                            "html-widget-refresh-$appWidgetId",
-                            ExistingPeriodicWorkPolicy.UPDATE,
-                            request
-                        )
-
-                    if (
-                        appWidgetId !=
-                        AppWidgetManager.INVALID_APPWIDGET_ID
-                    ) {
-
-                        HtmlWidgetProvider.refresh(
-                            this@SetupActivity,
-                            intArrayOf(
-                                appWidgetId
-                            )
-                        )
-
-                        val resultValue =
-                            Intent().apply {
-
-                                putExtra(
-                                    AppWidgetManager.EXTRA_APPWIDGET_ID,
-                                    appWidgetId
-                                )
-                            }
-
-                        setResult(
-                            RESULT_OK,
-                            resultValue
-                        )
-
-                        Toast.makeText(
-                            this@SetupActivity,
-                            "Gemt – HTML Widget er opdateret",
-                            Toast.LENGTH_LONG
-                        ).show()
-
-                        finish()
-                    }
+                    saveWidgetSettings()
                 }
             }
         )
 
         /*
-         * SCROLLBAR OPSÆTNINGSSKÆRMEN
+         * SCROLLBAR
          */
         setContentView(
 
@@ -632,6 +483,198 @@ class SetupActivity : Activity() {
                 )
             }
         )
+    }
+
+    /*
+     * ----------------------------------------
+     * OPDATER REFRESH-TEKST
+     * ----------------------------------------
+     */
+    private fun updateRefreshLabel() {
+
+        val minutes =
+            refreshValues[
+                refreshSlider.progress
+            ]
+
+        refreshLabel.text =
+            if (
+                minutes < 60
+            ) {
+
+                "Opdateringsfrekvens: $minutes minutter"
+
+            } else {
+
+                val hours =
+                    minutes / 60
+
+                if (
+                    hours == 1
+                ) {
+
+                    "Opdateringsfrekvens: 1 time"
+
+                } else {
+
+                    "Opdateringsfrekvens: $hours timer"
+                }
+            }
+    }
+
+    /*
+     * ----------------------------------------
+     * GEM WIDGET
+     * ----------------------------------------
+     */
+    private fun saveWidgetSettings() {
+
+        val website =
+            url.text
+                .toString()
+                .trim()
+
+        prefs.edit().apply {
+
+            if (
+                website.isNotEmpty()
+            ) {
+
+                putString(
+                    "url_$appWidgetId",
+                    website
+                )
+
+                remove(
+                    "localUri_$appWidgetId"
+                )
+
+            } else if (
+                localUri != null
+            ) {
+
+                putString(
+                    "localUri_$appWidgetId",
+                    localUri.toString()
+                )
+
+                remove(
+                    "url_$appWidgetId"
+                )
+            }
+
+            putBoolean(
+                "adblock",
+                adBlock.isChecked
+            )
+
+            putBoolean(
+                "hideCookieBanners_$appWidgetId",
+                hideCookieBanners.isChecked
+            )
+
+            putBoolean(
+                "hideCookieBanners",
+                hideCookieBanners.isChecked
+            )
+
+            putBoolean(
+                "showUpdateStatus_$appWidgetId",
+                showUpdateStatus.isChecked
+            )
+
+            putInt(
+                "refreshMinutes_$appWidgetId",
+                refreshValues[
+                    refreshSlider.progress
+                ]
+            )
+
+            apply()
+        }
+
+        scheduleRefresh()
+
+        if (
+            appWidgetId !=
+            AppWidgetManager.INVALID_APPWIDGET_ID
+        ) {
+
+            HtmlWidgetProvider.refresh(
+                this,
+                intArrayOf(
+                    appWidgetId
+                )
+            )
+
+            val resultValue =
+                Intent().apply {
+
+                    putExtra(
+                        AppWidgetManager.EXTRA_APPWIDGET_ID,
+                        appWidgetId
+                    )
+                }
+
+            setResult(
+                RESULT_OK,
+                resultValue
+            )
+
+            Toast.makeText(
+                this,
+                "Gemt – HTML Widget er opdateret",
+                Toast.LENGTH_LONG
+            ).show()
+
+            finish()
+        }
+    }
+
+    /*
+     * ----------------------------------------
+     * PLANLÆG AUTOMATISK REFRESH
+     * ----------------------------------------
+     */
+    private fun scheduleRefresh() {
+
+        if (
+            appWidgetId ==
+            AppWidgetManager.INVALID_APPWIDGET_ID
+        ) {
+            return
+        }
+
+        val refreshMinutes =
+            prefs.getInt(
+                "refreshMinutes_$appWidgetId",
+                15
+            )
+
+        val request =
+            PeriodicWorkRequestBuilder<
+                RefreshWorker
+            >(
+                refreshMinutes.toLong(),
+                TimeUnit.MINUTES
+            )
+                .setInputData(
+                    androidx.work.workDataOf(
+                        AppWidgetManager.EXTRA_APPWIDGET_ID to
+                            appWidgetId
+                    )
+                )
+                .build()
+
+        WorkManager
+            .getInstance(
+                this
+            )
+            .enqueueUniquePeriodicWork(
+                "html-widget-refresh-$appWidgetId",
+                ExistingPeriodicWorkPolicy.UPDATE,
+                request
+            )
     }
 
     /*
@@ -655,9 +698,6 @@ class SetupActivity : Activity() {
             return
         }
 
-        /*
-         * Åbn Androids normale "Gem som".
-         */
         val intent =
             Intent(
                 Intent.ACTION_CREATE_DOCUMENT
@@ -684,6 +724,50 @@ class SetupActivity : Activity() {
 
     /*
      * ----------------------------------------
+     * IMPORTER BACKUP
+     * ----------------------------------------
+     */
+    private fun importBackup() {
+
+        if (
+            appWidgetId ==
+            AppWidgetManager.INVALID_APPWIDGET_ID
+        ) {
+
+            Toast.makeText(
+                this,
+                "Kunne ikke finde widgetten",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+        val intent =
+            Intent(
+                Intent.ACTION_OPEN_DOCUMENT
+            ).apply {
+
+                addCategory(
+                    Intent.CATEGORY_OPENABLE
+                )
+
+                type =
+                    "application/json"
+
+                addFlags(
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+
+        startActivityForResult(
+            intent,
+            importBackupRequest
+        )
+    }
+
+    /*
+     * ----------------------------------------
      * LAV BACKUP-JSON
      * ----------------------------------------
      */
@@ -702,9 +786,6 @@ class SetupActivity : Activity() {
             "Web Widget"
         )
 
-        /*
-         * Globale indstillinger.
-         */
         backup.put(
             "adblock",
             prefs.getBoolean(
@@ -713,9 +794,6 @@ class SetupActivity : Activity() {
             )
         )
 
-        /*
-         * Widget-indstillinger.
-         */
         val widget =
             JSONObject()
 
@@ -723,16 +801,19 @@ class SetupActivity : Activity() {
             name: String
         ) {
 
+            val key =
+                "${name}_$appWidgetId"
+
             if (
                 prefs.contains(
-                    "${name}_$appWidgetId"
+                    key
                 )
             ) {
 
                 widget.put(
                     name,
                     prefs.getString(
-                        "${name}_$appWidgetId",
+                        key,
                         ""
                     )
                 )
@@ -743,16 +824,19 @@ class SetupActivity : Activity() {
             name: String
         ) {
 
+            val key =
+                "${name}_$appWidgetId"
+
             if (
                 prefs.contains(
-                    "${name}_$appWidgetId"
+                    key
                 )
             ) {
 
                 widget.put(
                     name,
                     prefs.getBoolean(
-                        "${name}_$appWidgetId",
+                        key,
                         false
                     )
                 )
@@ -763,16 +847,19 @@ class SetupActivity : Activity() {
             name: String
         ) {
 
+            val key =
+                "${name}_$appWidgetId"
+
             if (
                 prefs.contains(
-                    "${name}_$appWidgetId"
+                    key
                 )
             ) {
 
                 widget.put(
                     name,
                     prefs.getInt(
-                        "${name}_$appWidgetId",
+                        key,
                         0
                     )
                 )
@@ -783,130 +870,62 @@ class SetupActivity : Activity() {
             name: String
         ) {
 
+            val key =
+                "${name}_$appWidgetId"
+
             if (
                 prefs.contains(
-                    "${name}_$appWidgetId"
+                    key
                 )
             ) {
 
                 widget.put(
                     name,
                     prefs.getFloat(
-                        "${name}_$appWidgetId",
+                        key,
                         0f
                     ).toDouble()
                 )
             }
         }
 
-        /*
-         * Adresse / lokal fil.
-         */
-        putString(
-            "url"
-        )
+        putString("url")
+        putString("localUri")
 
-        putString(
-            "localUri"
-        )
+        putBoolean("hideCookieBanners")
+        putBoolean("showUpdateStatus")
 
-        /*
-         * Almindelige widget-indstillinger.
-         */
-        putBoolean(
-            "hideCookieBanners"
-        )
+        putInt("refreshMinutes")
 
-        putBoolean(
-            "showUpdateStatus"
-        )
+        putBoolean("cropEnabled")
 
-        putInt(
-            "refreshMinutes"
-        )
+        putFloat("cropCssX")
+        putFloat("cropCssY")
+        putFloat("cropCssWidth")
+        putFloat("cropCssHeight")
 
-        /*
-         * Crop.
-         */
-        putBoolean(
-            "cropEnabled"
-        )
+        putFloat("cropCssViewportWidth")
+        putFloat("cropCssViewportHeight")
 
-        putFloat(
-            "cropCssX"
-        )
+        putFloat("cropCssDocumentWidth")
+        putFloat("cropCssDocumentHeight")
 
-        putFloat(
-            "cropCssY"
-        )
+        putInt("cropViewportWidth")
+        putInt("cropViewportHeight")
 
-        putFloat(
-            "cropCssWidth"
-        )
+        putFloat("cropWebScale")
 
-        putFloat(
-            "cropCssHeight"
-        )
+        putInt("cropSelectionWidth")
+        putInt("cropSelectionHeight")
 
-        putFloat(
-            "cropCssViewportWidth"
-        )
+        putInt("websiteScrollX")
+        putInt("websiteScrollY")
 
-        putFloat(
-            "cropCssViewportHeight"
-        )
+        putFloat("cropFrameX")
+        putFloat("cropFrameY")
 
-        putFloat(
-            "cropCssDocumentWidth"
-        )
-
-        putFloat(
-            "cropCssDocumentHeight"
-        )
-
-        putInt(
-            "cropViewportWidth"
-        )
-
-        putInt(
-            "cropViewportHeight"
-        )
-
-        putFloat(
-            "cropWebScale"
-        )
-
-        putInt(
-            "cropSelectionWidth"
-        )
-
-        putInt(
-            "cropSelectionHeight"
-        )
-
-        putInt(
-            "websiteScrollX"
-        )
-
-        putInt(
-            "websiteScrollY"
-        )
-
-        putFloat(
-            "cropFrameX"
-        )
-
-        putFloat(
-            "cropFrameY"
-        )
-
-        putInt(
-            "cropFrameWidth"
-        )
-
-        putInt(
-            "cropFrameHeight"
-        )
+        putInt("cropFrameWidth")
+        putInt("cropFrameHeight")
 
         backup.put(
             "widget",
@@ -918,7 +937,7 @@ class SetupActivity : Activity() {
 
     /*
      * ----------------------------------------
-     * SKRIV BACKUP TIL FIL
+     * SKRIV BACKUP
      * ----------------------------------------
      */
     private fun writeBackup(
@@ -960,6 +979,451 @@ class SetupActivity : Activity() {
                 Toast.LENGTH_LONG
             ).show()
         }
+    }
+
+    /*
+     * ----------------------------------------
+     * LÆS OG IMPORTER BACKUP
+     * ----------------------------------------
+     */
+    private fun readBackup(
+        uri: Uri
+    ) {
+
+        try {
+
+            val jsonText =
+                contentResolver
+                    .openInputStream(
+                        uri
+                    )
+                    ?.bufferedReader()
+                    ?.use {
+
+                        it.readText()
+                    }
+                    ?: throw Exception(
+                        "Kunne ikke læse filen"
+                    )
+
+            val backup =
+                JSONObject(
+                    jsonText
+                )
+
+            val backupVersion =
+                backup.optInt(
+                    "backupVersion",
+                    -1
+                )
+
+            if (
+                backupVersion != 1
+            ) {
+
+                Toast.makeText(
+                    this,
+                    "Backup-versionen understøttes ikke",
+                    Toast.LENGTH_LONG
+                ).show()
+
+                return
+            }
+
+            val widget =
+                backup.optJSONObject(
+                    "widget"
+                )
+                    ?: throw Exception(
+                        "Widget-data mangler"
+                    )
+
+            val editor =
+                prefs.edit()
+
+            /*
+             * Global reklameblokering.
+             */
+            if (
+                backup.has(
+                    "adblock"
+                )
+            ) {
+
+                editor.putBoolean(
+                    "adblock",
+                    backup.optBoolean(
+                        "adblock",
+                        true
+                    )
+                )
+            }
+
+            /*
+             * Hjælpefunktioner.
+             */
+            fun importString(
+                name: String
+            ) {
+
+                if (
+                    widget.has(
+                        name
+                    ) &&
+                    !widget.isNull(
+                        name
+                    )
+                ) {
+
+                    editor.putString(
+                        "${name}_$appWidgetId",
+                        widget.optString(
+                            name,
+                            ""
+                        )
+                    )
+                }
+            }
+
+            fun importBoolean(
+                name: String
+            ) {
+
+                if (
+                    widget.has(
+                        name
+                    )
+                ) {
+
+                    editor.putBoolean(
+                        "${name}_$appWidgetId",
+                        widget.optBoolean(
+                            name,
+                            false
+                        )
+                    )
+                }
+            }
+
+            fun importInt(
+                name: String
+            ) {
+
+                if (
+                    widget.has(
+                        name
+                    )
+                ) {
+
+                    editor.putInt(
+                        "${name}_$appWidgetId",
+                        widget.optInt(
+                            name,
+                            0
+                        )
+                    )
+                }
+            }
+
+            fun importFloat(
+                name: String
+            ) {
+
+                if (
+                    widget.has(
+                        name
+                    )
+                ) {
+
+                    editor.putFloat(
+                        "${name}_$appWidgetId",
+                        widget.optDouble(
+                            name,
+                            0.0
+                        ).toFloat()
+                    )
+                }
+            }
+
+            /*
+             * Fjern først gammel URL / lokal fil,
+             * så vi ikke ender med begge dele.
+             */
+            editor.remove(
+                "url_$appWidgetId"
+            )
+
+            editor.remove(
+                "localUri_$appWidgetId"
+            )
+
+            /*
+             * Adresse / lokal HTML.
+             */
+            importString(
+                "url"
+            )
+
+            importString(
+                "localUri"
+            )
+
+            /*
+             * Almindelige indstillinger.
+             */
+            importBoolean(
+                "hideCookieBanners"
+            )
+
+            importBoolean(
+                "showUpdateStatus"
+            )
+
+            importInt(
+                "refreshMinutes"
+            )
+
+            /*
+             * Crop.
+             */
+            importBoolean(
+                "cropEnabled"
+            )
+
+            importFloat(
+                "cropCssX"
+            )
+
+            importFloat(
+                "cropCssY"
+            )
+
+            importFloat(
+                "cropCssWidth"
+            )
+
+            importFloat(
+                "cropCssHeight"
+            )
+
+            importFloat(
+                "cropCssViewportWidth"
+            )
+
+            importFloat(
+                "cropCssViewportHeight"
+            )
+
+            importFloat(
+                "cropCssDocumentWidth"
+            )
+
+            importFloat(
+                "cropCssDocumentHeight"
+            )
+
+            importInt(
+                "cropViewportWidth"
+            )
+
+            importInt(
+                "cropViewportHeight"
+            )
+
+            importFloat(
+                "cropWebScale"
+            )
+
+            importInt(
+                "cropSelectionWidth"
+            )
+
+            importInt(
+                "cropSelectionHeight"
+            )
+
+            importInt(
+                "websiteScrollX"
+            )
+
+            importInt(
+                "websiteScrollY"
+            )
+
+            importFloat(
+                "cropFrameX"
+            )
+
+            importFloat(
+                "cropFrameY"
+            )
+
+            importInt(
+                "cropFrameWidth"
+            )
+
+            importInt(
+                "cropFrameHeight"
+            )
+
+            /*
+             * En gammel checksum skal IKKE
+             * genbruges efter import.
+             *
+             * Vi vil have første rendering til
+             * at sende et nyt billede.
+             */
+            editor.remove(
+                "lastBitmapChecksum_$appWidgetId"
+            )
+
+            editor.remove(
+                "lastSuccessfulUpdate_$appWidgetId"
+            )
+
+            editor.apply()
+
+            /*
+             * Global kompatibilitetsværdi.
+             */
+            val importedCookieSetting =
+                prefs.getBoolean(
+                    "hideCookieBanners_$appWidgetId",
+                    true
+                )
+
+            prefs.edit()
+                .putBoolean(
+                    "hideCookieBanners",
+                    importedCookieSetting
+                )
+                .apply()
+
+            /*
+             * Opdater skærmens felter med
+             * de importerede værdier.
+             */
+            updateUiAfterImport()
+
+            /*
+             * Start det importerede interval.
+             */
+            scheduleRefresh()
+
+            /*
+             * Render widgetten med de
+             * importerede indstillinger.
+             */
+            HtmlWidgetProvider.refresh(
+                this,
+                intArrayOf(
+                    appWidgetId
+                )
+            )
+
+            Toast.makeText(
+                this,
+                "Backup importeret",
+                Toast.LENGTH_LONG
+            ).show()
+
+        } catch (_: Exception) {
+
+            Toast.makeText(
+                this,
+                "Kunne ikke importere backup",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    /*
+     * ----------------------------------------
+     * OPDATER SKÆRM EFTER IMPORT
+     * ----------------------------------------
+     */
+    private fun updateUiAfterImport() {
+
+        val importedUrl =
+            prefs.getString(
+                "url_$appWidgetId",
+                ""
+            ) ?: ""
+
+        url.setText(
+            importedUrl
+        )
+
+        val importedLocalUri =
+            prefs.getString(
+                "localUri_$appWidgetId",
+                null
+            )
+
+        localUri =
+            if (
+                importedLocalUri.isNullOrBlank()
+            ) {
+
+                null
+
+            } else {
+
+                try {
+
+                    Uri.parse(
+                        importedLocalUri
+                    )
+
+                } catch (_: Exception) {
+
+                    null
+                }
+            }
+
+        adBlock.isChecked =
+            prefs.getBoolean(
+                "adblock",
+                true
+            )
+
+        hideCookieBanners.isChecked =
+            prefs.getBoolean(
+                "hideCookieBanners_$appWidgetId",
+                true
+            )
+
+        showUpdateStatus.isChecked =
+            prefs.getBoolean(
+                "showUpdateStatus_$appWidgetId",
+                true
+            )
+
+        val importedRefresh =
+            prefs.getInt(
+                "refreshMinutes_$appWidgetId",
+                15
+            )
+
+        val importedIndex =
+            refreshValues
+                .indexOf(
+                    importedRefresh
+                )
+
+        refreshSlider.progress =
+            if (
+                importedIndex >= 0
+            ) {
+
+                importedIndex
+
+            } else {
+
+                0
+            }
+
+        updateRefreshLabel()
     }
 
     /*
@@ -1018,7 +1482,7 @@ class SetupActivity : Activity() {
         }
 
         /*
-         * BACKUP-FIL VALGT.
+         * EKSPORT
          */
         if (
             requestCode ==
@@ -1030,6 +1494,26 @@ class SetupActivity : Activity() {
             data?.data?.let { uri ->
 
                 writeBackup(
+                    uri
+                )
+            }
+
+            return
+        }
+
+        /*
+         * IMPORT
+         */
+        if (
+            requestCode ==
+            importBackupRequest &&
+            resultCode ==
+            RESULT_OK
+        ) {
+
+            data?.data?.let { uri ->
+
+                readBackup(
                     uri
                 )
             }
