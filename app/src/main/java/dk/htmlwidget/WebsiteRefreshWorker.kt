@@ -23,6 +23,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.zip.CRC32
 import kotlin.math.roundToInt
 
 class WebsiteRefreshWorker(
@@ -329,6 +330,64 @@ class WebsiteRefreshWorker(
             )
         }
 
+        /*
+         * Beregn checksum af det færdige billede.
+         *
+         * Hvis checksum er den samme som ved
+         * sidste rendering, behøver Android
+         * ikke modtage billedet igen.
+         */
+        fun bitmapChecksum(
+            bitmap: Bitmap
+        ): Long {
+
+            val crc =
+                CRC32()
+
+            val row =
+                IntArray(
+                    bitmap.width
+                )
+
+            for (
+                y in 0 until bitmap.height
+            ) {
+
+                bitmap.getPixels(
+                    row,
+                    0,
+                    bitmap.width,
+                    0,
+                    y,
+                    bitmap.width,
+                    1
+                )
+
+                for (
+                    pixel in row
+                ) {
+
+                    crc.update(
+                        pixel ushr 24 and 0xFF
+                    )
+
+                    crc.update(
+                        pixel ushr 16 and 0xFF
+                    )
+
+                    crc.update(
+                        pixel ushr 8 and 0xFF
+                    )
+
+                    crc.update(
+                        pixel and 0xFF
+                    )
+                }
+            }
+
+            return crc.value
+        }
+
         fun drawWidget(
             workerCssViewportWidth: Float,
             workerCssViewportHeight: Float
@@ -347,6 +406,9 @@ class WebsiteRefreshWorker(
                             return
                         }
 
+                /*
+                 * Vores fungerende CSS mapping.
+                 */
                 val pixelsPerCssX =
                     renderWidth.toFloat() /
                         workerCssViewportWidth
@@ -367,6 +429,7 @@ class WebsiteRefreshWorker(
                             .coerceAtLeast(0)
 
                     } else {
+
                         0
                     }
 
@@ -380,6 +443,7 @@ class WebsiteRefreshWorker(
                             .coerceAtLeast(0)
 
                     } else {
+
                         0
                     }
 
@@ -417,6 +481,9 @@ class WebsiteRefreshWorker(
                         widgetHeight
                     }
 
+                /*
+                 * Tegn det valgte område.
+                 */
                 val selectedBitmap =
                     Bitmap.createBitmap(
                         captureWidth,
@@ -442,6 +509,10 @@ class WebsiteRefreshWorker(
 
                 canvas.restore()
 
+                /*
+                 * Tilpas det valgte område til
+                 * widgettens faktiske størrelse.
+                 */
                 val finalBitmap =
                     if (
                         captureWidth != widgetWidth ||
@@ -460,27 +531,73 @@ class WebsiteRefreshWorker(
                         selectedBitmap
                     }
 
-                val views =
-                    RemoteViews(
-                        context.packageName,
-                        R.layout.widget_layout
+                /*
+                 * --------------------------------
+                 * NYT I FIL 8
+                 * --------------------------------
+                 *
+                 * Beregn checksum af billedet.
+                 */
+                val newChecksum =
+                    bitmapChecksum(
+                        finalBitmap
                     )
 
-                views.setImageViewBitmap(
-                    R.id.widget_image,
-                    finalBitmap
-                )
+                val oldChecksum =
+                    prefs.getLong(
+                        "lastBitmapChecksum_$appWidgetId",
+                        -1L
+                    )
 
-                manager.updateAppWidget(
-                    appWidgetId,
-                    views
-                )
+                val imageChanged =
+                    newChecksum !=
+                        oldChecksum
 
                 /*
-                 * Gem tidspunkt og debug-data.
+                 * Send KUN et nyt bitmap til
+                 * Android, hvis billedet faktisk
+                 * har ændret sig.
                  */
+                if (imageChanged) {
+
+                    val views =
+                        RemoteViews(
+                            context.packageName,
+                            R.layout.widget_layout
+                        )
+
+                    views.setImageViewBitmap(
+                        R.id.widget_image,
+                        finalBitmap
+                    )
+
+                    manager.updateAppWidget(
+                        appWidgetId,
+                        views
+                    )
+                }
+
+                /*
+                 * Et vellykket render tæller som
+                 * en opdatering, også selv om
+                 * billedet var identisk.
+                 */
+                val successfulUpdateTime =
+                    System.currentTimeMillis()
+
                 prefs.edit()
 
+                    /*
+                     * Gem checksum til næste gang.
+                     */
+                    .putLong(
+                        "lastBitmapChecksum_$appWidgetId",
+                        newChecksum
+                    )
+
+                    /*
+                     * Debug/crop-data.
+                     */
                     .putInt(
                         "cropBitmapX_$appWidgetId",
                         drawX
@@ -513,31 +630,50 @@ class WebsiteRefreshWorker(
 
                     .putLong(
                         "lastSuccessfulUpdate_$appWidgetId",
-                        System.currentTimeMillis()
+                        successfulUpdateTime
                     )
 
                     .apply()
 
                 /*
-                 * Kun manuel opdatering viser
+                 * Ved manuel opdatering skifter
+                 * "Opdaterer…" til
                  * "Opdateret HH:mm".
+                 *
+                 * Det sker også, hvis hjemmesiden
+                 * ikke havde ændret sig, fordi
+                 * kontrollen stadig lykkedes.
                  */
                 showFinishedStatus()
 
                 /*
-                 * Frigiv evt. ekstra bitmap.
+                 * Frigiv den midlertidige bitmap,
+                 * hvis finalBitmap er en separat
+                 * skaleret bitmap.
                  */
                 if (
-                    finalBitmap !== selectedBitmap
+                    finalBitmap !==
+                    selectedBitmap
                 ) {
 
                     try {
+
                         selectedBitmap.recycle()
+
                     } catch (_: Exception) {
                     }
                 }
 
             } catch (_: Exception) {
+
+                /*
+                 * Ved fejl overskriver vi IKKE
+                 * widgetten.
+                 *
+                 * Det sidste fungerende billede
+                 * bliver derfor stående.
+                 */
+
             } finally {
 
                 cleanup()
@@ -552,9 +688,8 @@ class WebsiteRefreshWorker(
          * Fjerner kendte cookie- og
          * samtykke-bannere.
          *
-         * Vigtigt:
          * Vi ændrer IKKE scroll eller
-         * crop-koordinater.
+         * CSS-koordinater.
          */
         fun hideCookieBanners(
             after: () -> Unit
@@ -579,6 +714,7 @@ class WebsiteRefreshWorker(
             if (!hideCookieBanners) {
 
                 after()
+
                 return
             }
 
@@ -645,10 +781,10 @@ class WebsiteRefreshWorker(
          * CSS VIEWPORT
          * ----------------------------------------
          *
-         * Dette er vores fungerende CSS-baserede
-         * crop-metode.
+         * Dette er vores fungerende
+         * CSS-baserede crop-metode.
          *
-         * Den skal ikke ændres.
+         * Den ændrer vi IKKE.
          */
         fun readWorkerCssViewport() {
 
@@ -680,22 +816,29 @@ class WebsiteRefreshWorker(
                             .trim()
                             .removePrefix("\"")
                             .removeSuffix("\"")
-                            .replace("\\\"", "\"")
+                            .replace(
+                                "\\\"",
+                                "\""
+                            )
 
                     val values =
                         cleaned.split(",")
 
                     val cssWidth =
-                        values.getOrNull(0)
+                        values
+                            .getOrNull(0)
                             ?.toFloatOrNull()
                             ?.coerceAtLeast(1f)
-                            ?: renderWidth.toFloat()
+                            ?: renderWidth
+                                .toFloat()
 
                     val cssHeight =
-                        values.getOrNull(1)
+                        values
+                            .getOrNull(1)
                             ?.toFloatOrNull()
                             ?.coerceAtLeast(1f)
-                            ?: renderHeight.toFloat()
+                            ?: renderHeight
+                                .toFloat()
 
                     drawWidget(
                         cssWidth,
@@ -715,17 +858,18 @@ class WebsiteRefreshWorker(
         return try {
 
             virtualDisplay =
-                displayManager.createVirtualDisplay(
-                    "WebWidget-$appWidgetId",
-                    renderWidth,
-                    renderHeight,
-                    context.resources
-                        .displayMetrics
-                        .densityDpi,
-                    surface,
-                    DisplayManager
-                        .VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY
-                )
+                displayManager
+                    .createVirtualDisplay(
+                        "WebWidget-$appWidgetId",
+                        renderWidth,
+                        renderHeight,
+                        context.resources
+                            .displayMetrics
+                            .densityDpi,
+                        surface,
+                        DisplayManager
+                            .VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY
+                    )
 
             val display =
                 virtualDisplay?.display
@@ -779,11 +923,13 @@ class WebsiteRefreshWorker(
                     true
             }
 
-            presentation!!.setContentView(
-                web
-            )
+            presentation!!
+                .setContentView(
+                    web
+                )
 
-            presentation!!.show()
+            presentation!!
+                .show()
 
             web!!.webViewClient =
                 object :
@@ -839,9 +985,7 @@ class WebsiteRefreshWorker(
                                     )
                             }
 
-                        return if (
-                            blocked
-                        ) {
+                        return if (blocked) {
 
                             android.webkit.WebResourceResponse(
                                 "text/plain",
@@ -867,9 +1011,10 @@ class WebsiteRefreshWorker(
                         /*
                          * VIGTIGT:
                          *
-                         * Vi beholder præcis vores
-                         * fungerende ventetid på
-                         * 2000 ms.
+                         * Beholder præcis vores
+                         * fungerende ventetid:
+                         *
+                         * 2000 ms
                          */
                         mainHandler.postDelayed({
 
