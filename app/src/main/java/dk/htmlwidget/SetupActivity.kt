@@ -23,10 +23,9 @@ class SetupActivity : Activity() {
     private var localUri: Uri? = null
 
     private lateinit var url: EditText
-
     private lateinit var adBlock: CheckBox
-
     private lateinit var hideCookieBanners: CheckBox
+    private lateinit var showUpdateStatus: CheckBox
 
     private var appWidgetId =
         AppWidgetManager.INVALID_APPWIDGET_ID
@@ -35,16 +34,13 @@ class SetupActivity : Activity() {
         savedInstanceState: Bundle?
     ) {
 
-        super.onCreate(
-            savedInstanceState
-        )
+        super.onCreate(savedInstanceState)
 
         appWidgetId =
             intent?.extras?.getInt(
                 AppWidgetManager.EXTRA_APPWIDGET_ID,
                 AppWidgetManager.INVALID_APPWIDGET_ID
-            )
-                ?: AppWidgetManager.INVALID_APPWIDGET_ID
+            ) ?: AppWidgetManager.INVALID_APPWIDGET_ID
 
         val layout =
             LinearLayout(this).apply {
@@ -60,14 +56,14 @@ class SetupActivity : Activity() {
                 )
             }
 
+        /*
+         * TITEL
+         */
         layout.addView(
             TextView(this).apply {
 
-                text =
-                    "HTML Widget"
-
-                textSize =
-                    26f
+                text = "HTML Widget"
+                textSize = 26f
             }
         )
 
@@ -77,16 +73,17 @@ class SetupActivity : Activity() {
                 text =
                     "Indsæt adressen på en hjemmeside eller vælg en HTML-fil fra telefonen."
 
-                textSize =
-                    16f
+                textSize = 16f
             }
         )
 
+        /*
+         * WEBSITE
+         */
         url =
             EditText(this).apply {
 
-                hint =
-                    "https://eksempel.dk"
+                hint = "https://eksempel.dk"
 
                 setText(
                     prefs.getString(
@@ -95,14 +92,10 @@ class SetupActivity : Activity() {
                     )
                 )
 
-                setSingleLine(
-                    true
-                )
+                setSingleLine(true)
             }
 
-        layout.addView(
-            url
-        )
+        layout.addView(url)
 
         /*
          * VÆLG OMRÅDE
@@ -120,9 +113,7 @@ class SetupActivity : Activity() {
                             .toString()
                             .trim()
 
-                    if (
-                        website.isEmpty()
-                    ) {
+                    if (website.isEmpty()) {
 
                         Toast.makeText(
                             this@SetupActivity,
@@ -134,10 +125,7 @@ class SetupActivity : Activity() {
                     }
 
                     /*
-                     * Gem URL'en allerede her.
-                     *
-                     * CropWebsiteActivity læser URL'en
-                     * fra SharedPreferences.
+                     * Gem URL inden crop-vinduet åbnes.
                      */
                     prefs.edit()
                         .putString(
@@ -163,9 +151,7 @@ class SetupActivity : Activity() {
                             )
                         }
 
-                    startActivity(
-                        cropIntent
-                    )
+                    startActivity(cropIntent)
                 }
             }
         )
@@ -181,7 +167,7 @@ class SetupActivity : Activity() {
 
                 setOnClickListener {
 
-                    val intent =
+                    val fileIntent =
                         Intent(
                             Intent.ACTION_OPEN_DOCUMENT
                         ).apply {
@@ -200,7 +186,7 @@ class SetupActivity : Activity() {
                         }
 
                     startActivityForResult(
-                        intent,
+                        fileIntent,
                         42
                     )
                 }
@@ -208,7 +194,7 @@ class SetupActivity : Activity() {
         )
 
         /*
-         * ANNONCEBLOKERING
+         * REKLAMEBLOKERING
          */
         adBlock =
             CheckBox(this).apply {
@@ -223,9 +209,7 @@ class SetupActivity : Activity() {
                     )
             }
 
-        layout.addView(
-            adBlock
-        )
+        layout.addView(adBlock)
 
         /*
          * COOKIE-BANNERE
@@ -254,10 +238,46 @@ class SetupActivity : Activity() {
             TextView(this).apply {
 
                 text =
-                    "Forsøger automatisk at fjerne kendte cookie- og samtykke-bannere fra website-widgetten."
+                    "Forsøger automatisk at fjerne kendte cookie- og samtykke-bannere."
 
-                textSize =
-                    13f
+                textSize = 13f
+
+                setPadding(
+                    10,
+                    0,
+                    10,
+                    20
+                )
+            }
+        )
+
+        /*
+         * OPDATERINGSSTATUS
+         */
+        showUpdateStatus =
+            CheckBox(this).apply {
+
+                text =
+                    "Vis opdateringsstatus"
+
+                isChecked =
+                    prefs.getBoolean(
+                        "showUpdateStatus_$appWidgetId",
+                        true
+                    )
+            }
+
+        layout.addView(
+            showUpdateStatus
+        )
+
+        layout.addView(
+            TextView(this).apply {
+
+                text =
+                    "Viser “Opdaterer…” og derefter tidspunktet for den seneste manuelle opdatering."
+
+                textSize = 13f
 
                 setPadding(
                     10,
@@ -298,9 +318,7 @@ class SetupActivity : Activity() {
 
         val refreshLabel =
             TextView(this).apply {
-
-                textSize =
-                    16f
+                textSize = 16f
             }
 
         val refreshSlider =
@@ -325,9 +343,7 @@ class SetupActivity : Activity() {
                 ]
 
             refreshLabel.text =
-                if (
-                    minutes < 60
-                ) {
+                if (minutes < 60) {
 
                     "Opdateringsfrekvens: $minutes minutter"
 
@@ -336,9 +352,7 @@ class SetupActivity : Activity() {
                     val hours =
                         minutes / 60
 
-                    if (
-                        hours == 1
-                    ) {
+                    if (hours == 1) {
 
                         "Opdateringsfrekvens: 1 time"
 
@@ -378,13 +392,8 @@ class SetupActivity : Activity() {
 
         updateRefreshLabel()
 
-        layout.addView(
-            refreshLabel
-        )
-
-        layout.addView(
-            refreshSlider
-        )
+        layout.addView(refreshLabel)
+        layout.addView(refreshSlider)
 
         /*
          * GEM
@@ -404,13 +413,8 @@ class SetupActivity : Activity() {
 
                     prefs.edit().apply {
 
-                        if (
-                            website.isNotEmpty()
-                        ) {
+                        if (website.isNotEmpty()) {
 
-                            /*
-                             * Hjemmeside valgt.
-                             */
                             putString(
                                 "url_$appWidgetId",
                                 website
@@ -424,9 +428,6 @@ class SetupActivity : Activity() {
                             localUri != null
                         ) {
 
-                            /*
-                             * Lokal HTML-fil valgt.
-                             */
                             putString(
                                 "localUri_$appWidgetId",
                                 localUri.toString()
@@ -437,13 +438,16 @@ class SetupActivity : Activity() {
                             )
                         }
 
+                        /*
+                         * Reklameblokering.
+                         */
                         putBoolean(
                             "adblock",
                             adBlock.isChecked
                         )
 
                         /*
-                         * Gemmes pr. widget.
+                         * Cookie-fjernelse.
                          */
                         putBoolean(
                             "hideCookieBanners_$appWidgetId",
@@ -451,15 +455,26 @@ class SetupActivity : Activity() {
                         )
 
                         /*
-                         * Gemmes også globalt lige nu,
-                         * så fil 1 allerede kan bruge
-                         * indstillingen.
+                         * Beholder global værdi
+                         * for kompatibilitet.
                          */
                         putBoolean(
                             "hideCookieBanners",
                             hideCookieBanners.isChecked
                         )
 
+                        /*
+                         * Opdateringsstatus
+                         * gemmes pr. widget.
+                         */
+                        putBoolean(
+                            "showUpdateStatus_$appWidgetId",
+                            showUpdateStatus.isChecked
+                        )
+
+                        /*
+                         * Opdateringsinterval.
+                         */
                         putInt(
                             "refreshMinutes_$appWidgetId",
                             refreshValues[
@@ -476,7 +491,9 @@ class SetupActivity : Activity() {
                         ]
 
                     val request =
-                        PeriodicWorkRequestBuilder<RefreshWorker>(
+                        PeriodicWorkRequestBuilder<
+                            RefreshWorker
+                        >(
                             refreshMinutes.toLong(),
                             TimeUnit.MINUTES
                         )
@@ -536,17 +553,23 @@ class SetupActivity : Activity() {
             }
         )
 
+        /*
+         * SCROLLBAR OPSÆTNINGSSKÆRMEN
+         */
         setContentView(
 
             ScrollView(this).apply {
 
-                addView(
-                    layout
-                )
+                addView(layout)
             }
         )
     }
 
+    /*
+     * ----------------------------------------
+     * HTML-FIL VALGT
+     * ----------------------------------------
+     */
     override fun onActivityResult(
         requestCode: Int,
         resultCode: Int,
@@ -575,9 +598,7 @@ class SetupActivity : Activity() {
                 localUri =
                     uri
 
-                url.setText(
-                    ""
-                )
+                url.setText("")
 
                 Toast.makeText(
                     this,
