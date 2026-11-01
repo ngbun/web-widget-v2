@@ -5,15 +5,15 @@
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF">
+    android:background="@drawable/widget_background_rounded"
+    android:clipToOutline="true">
 
     <ImageView
         android:id="@+id/widget_image"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="fitXY"
-        android:contentDescription="HTML side"
-        android:background="#FFFFFF" />
+        android:contentDescription="HTML side" />
 
     <!-- Manuel opdatering -->
     <TextView
