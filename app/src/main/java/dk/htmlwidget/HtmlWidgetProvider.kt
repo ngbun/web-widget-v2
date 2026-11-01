@@ -13,7 +13,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 
-class HtmlWidgetProvider :
+open class HtmlWidgetProvider :
     AppWidgetProvider() {
 
     override fun onUpdate(
