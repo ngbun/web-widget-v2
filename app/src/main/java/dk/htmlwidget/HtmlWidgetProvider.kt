@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.RemoteViews
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
@@ -23,7 +24,8 @@ class HtmlWidgetProvider :
 
         refresh(
             context,
-            appWidgetIds
+            appWidgetIds,
+            false
         )
     }
 
@@ -43,9 +45,8 @@ class HtmlWidgetProvider :
 
         refresh(
             context,
-            intArrayOf(
-                appWidgetId
-            )
+            intArrayOf(appWidgetId),
+            false
         )
     }
 
@@ -64,11 +65,10 @@ class HtmlWidgetProvider :
      * ----------------------------------------
      *
      * 1 tryk:
-     * Opdater widgetten.
+     * Manuel opdatering.
      *
      * 2 tryk inden for 800 ms:
-     * Åbn indstillingerne for præcis
-     * denne widget.
+     * Åbn indstillinger.
      */
     override fun onReceive(
         context: Context,
@@ -120,17 +120,22 @@ class HtmlWidgetProvider :
                 isDoubleClick
             ) {
 
-                /*
-                 * Dobbelttryk.
-                 *
-                 * Fjern klik-tidspunktet, så næste
-                 * almindelige tryk starter på ny.
-                 */
                 prefs.edit()
                     .remove(
                         "lastClickTime_$appWidgetId"
                     )
                     .apply()
+
+                /*
+                 * Hvis første tryk nåede at vise
+                 * "Opdaterer…", skjuler vi teksten
+                 * igen, når det viser sig at være
+                 * et dobbelttryk.
+                 */
+                hideStatus(
+                    context,
+                    appWidgetId
+                )
 
                 val setupIntent =
                     Intent(
@@ -153,9 +158,6 @@ class HtmlWidgetProvider :
 
             } else {
 
-                /*
-                 * Enkelttryk.
-                 */
                 prefs.edit()
                     .putLong(
                         "lastClickTime_$appWidgetId",
@@ -163,11 +165,13 @@ class HtmlWidgetProvider :
                     )
                     .apply()
 
+                /*
+                 * Manuel opdatering.
+                 */
                 refresh(
                     context,
-                    intArrayOf(
-                        appWidgetId
-                    )
+                    intArrayOf(appWidgetId),
+                    true
                 )
             }
         }
@@ -177,9 +181,6 @@ class HtmlWidgetProvider :
      * ----------------------------------------
      * WIDGET SLETTES
      * ----------------------------------------
-     *
-     * Her rydder vi ALT op, som tilhører
-     * den konkrete widget.
      */
     override fun onDeleted(
         context: Context,
@@ -204,9 +205,6 @@ class HtmlWidgetProvider :
 
         appWidgetIds.forEach { id ->
 
-            /*
-             * Stop planlagte/oprettede jobs.
-             */
             workManager.cancelUniqueWork(
                 "html-widget-refresh-$id"
             )
@@ -215,55 +213,32 @@ class HtmlWidgetProvider :
                 "website-refresh-$id"
             )
 
-            /*
-             * Fjern alle indstillinger og
-             * debug-værdier for denne widget.
-             */
             prefs.edit()
 
-                /*
-                 * Grundindstillinger.
-                 */
-                .remove(
-                    "url_$id"
-                )
-
-                .remove(
-                    "localUri_$id"
-                )
-
-                .remove(
-                    "refreshMinutes_$id"
-                )
+                .remove("url_$id")
+                .remove("localUri_$id")
+                .remove("refreshMinutes_$id")
 
                 .remove(
                     "hideCookieBanners_$id"
                 )
 
-                /*
-                 * Klik.
-                 */
+                .remove(
+                    "showUpdateStatus_$id"
+                )
+
                 .remove(
                     "lastClickTime_$id"
                 )
 
-                /*
-                 * Seneste vellykkede opdatering.
-                 */
                 .remove(
                     "lastSuccessfulUpdate_$id"
                 )
 
-                /*
-                 * Crop aktiveret.
-                 */
                 .remove(
                     "cropEnabled_$id"
                 )
 
-                /*
-                 * CSS-koordinater.
-                 */
                 .remove(
                     "cropCssX_$id"
                 )
@@ -280,9 +255,6 @@ class HtmlWidgetProvider :
                     "cropCssHeight_$id"
                 )
 
-                /*
-                 * CSS viewport.
-                 */
                 .remove(
                     "cropCssViewportWidth_$id"
                 )
@@ -299,9 +271,6 @@ class HtmlWidgetProvider :
                     "cropCssDocumentHeight_$id"
                 )
 
-                /*
-                 * Android/WebView viewport.
-                 */
                 .remove(
                     "cropViewportWidth_$id"
                 )
@@ -314,9 +283,6 @@ class HtmlWidgetProvider :
                     "cropWebScale_$id"
                 )
 
-                /*
-                 * Valgt område.
-                 */
                 .remove(
                     "cropSelectionWidth_$id"
                 )
@@ -325,9 +291,6 @@ class HtmlWidgetProvider :
                     "cropSelectionHeight_$id"
                 )
 
-                /*
-                 * Scroll-position.
-                 */
                 .remove(
                     "websiteScrollX_$id"
                 )
@@ -336,10 +299,6 @@ class HtmlWidgetProvider :
                     "websiteScrollY_$id"
                 )
 
-                /*
-                 * Den røde rammes position
-                 * og størrelse.
-                 */
                 .remove(
                     "cropFrameX_$id"
                 )
@@ -356,9 +315,6 @@ class HtmlWidgetProvider :
                     "cropFrameHeight_$id"
                 )
 
-                /*
-                 * Worker debug-data.
-                 */
                 .remove(
                     "cropBitmapX_$id"
                 )
@@ -384,10 +340,8 @@ class HtmlWidgetProvider :
                 )
 
                 /*
-                 * Ældre crop-data.
-                 *
-                 * Disse kan ligge tilbage fra
-                 * tidligere versioner af appen.
+                 * Gamle værdier fra tidligere
+                 * crop-versioner.
                  */
                 .remove(
                     "cropDocumentX_$id"
@@ -456,12 +410,104 @@ class HtmlWidgetProvider :
 
         /*
          * ----------------------------------------
-         * OPDATER WIDGET
+         * VIS "OPDATERER…"
          * ----------------------------------------
+         */
+        private fun showUpdating(
+            context: Context,
+            appWidgetId: Int
+        ) {
+
+            val prefs =
+                context.getSharedPreferences(
+                    "settings",
+                    Context.MODE_PRIVATE
+                )
+
+            /*
+             * Standard = slået til.
+             *
+             * I næste SetupActivity-fil får
+             * brugeren en checkbox til dette.
+             */
+            val showStatus =
+                prefs.getBoolean(
+                    "showUpdateStatus_$appWidgetId",
+                    true
+                )
+
+            if (!showStatus) {
+                return
+            }
+
+            val views =
+                RemoteViews(
+                    context.packageName,
+                    R.layout.widget_layout
+                )
+
+            views.setTextViewText(
+                R.id.widget_status,
+                "Opdaterer…"
+            )
+
+            views.setViewVisibility(
+                R.id.widget_status,
+                View.VISIBLE
+            )
+
+            AppWidgetManager
+                .getInstance(context)
+                .partiallyUpdateAppWidget(
+                    appWidgetId,
+                    views
+                )
+        }
+
+        /*
+         * ----------------------------------------
+         * SKJUL STATUS
+         * ----------------------------------------
+         */
+        private fun hideStatus(
+            context: Context,
+            appWidgetId: Int
+        ) {
+
+            val views =
+                RemoteViews(
+                    context.packageName,
+                    R.layout.widget_layout
+                )
+
+            views.setViewVisibility(
+                R.id.widget_status,
+                View.GONE
+            )
+
+            AppWidgetManager
+                .getInstance(context)
+                .partiallyUpdateAppWidget(
+                    appWidgetId,
+                    views
+                )
+        }
+
+        /*
+         * ----------------------------------------
+         * OPDATER
+         * ----------------------------------------
+         *
+         * manualRefresh = true:
+         * Vis "Opdaterer…".
+         *
+         * manualRefresh = false:
+         * Baggrundsopdatering uden status.
          */
         fun refresh(
             context: Context,
-            ids: IntArray
+            ids: IntArray,
+            manualRefresh: Boolean = false
         ) {
 
             if (
@@ -484,9 +530,7 @@ class HtmlWidgetProvider :
             ids.forEach { id ->
 
                 /*
-                 * --------------------------------
-                 * TRYK-HANDLING
-                 * --------------------------------
+                 * Klik-handler.
                  */
                 val clickIntent =
                     Intent(
@@ -524,18 +568,25 @@ class HtmlWidgetProvider :
                         clickPendingIntent
                     )
 
-                /*
-                 * VIGTIGT:
-                 *
-                 * Vi ændrer kun click-handleren.
-                 * Det eksisterende billede bliver
-                 * stående, mens en ny version
-                 * renderes.
-                 */
-                manager.updateAppWidget(
+                manager.partiallyUpdateAppWidget(
                     id,
                     clickViews
                 )
+
+                /*
+                 * Ved manuel opdatering viser
+                 * vi status oven på det gamle
+                 * fungerende billede.
+                 */
+                if (
+                    manualRefresh
+                ) {
+
+                    showUpdating(
+                        context,
+                        id
+                    )
+                }
 
                 val website =
                     prefs.getString(
@@ -550,9 +601,7 @@ class HtmlWidgetProvider :
                     )
 
                 /*
-                 * --------------------------------
-                 * HJEMMESIDE
-                 * --------------------------------
+                 * WEBSITE
                  */
                 if (
                     !website.isNullOrBlank()
@@ -565,7 +614,9 @@ class HtmlWidgetProvider :
                             .setInputData(
                                 workDataOf(
                                     AppWidgetManager.EXTRA_APPWIDGET_ID to
-                                        id
+                                        id,
+                                    "manualRefresh" to
+                                        manualRefresh
                                 )
                             )
                             .build()
@@ -584,15 +635,28 @@ class HtmlWidgetProvider :
                 }
 
                 /*
-                 * --------------------------------
                  * LOKAL HTML
-                 * --------------------------------
                  */
                 if (
                     !localUri.isNullOrBlank()
                 ) {
 
                     HtmlRenderService.start(
+                        context,
+                        id
+                    )
+
+                    return@forEach
+                }
+
+                /*
+                 * Intet at opdatere.
+                 */
+                if (
+                    manualRefresh
+                ) {
+
+                    hideStatus(
                         context,
                         id
                     )
