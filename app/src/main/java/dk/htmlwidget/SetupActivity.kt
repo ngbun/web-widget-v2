@@ -17,17 +17,31 @@ import java.util.concurrent.TimeUnit
 class SetupActivity : Activity() {
 
     private val prefs by lazy {
-        getSharedPreferences("settings", MODE_PRIVATE)
+        getSharedPreferences(
+            "settings",
+            MODE_PRIVATE
+        )
     }
 
-    private var localUri: Uri? = null
+    private var localUri: Uri? =
+        null
 
     private lateinit var widgetName: EditText
     private lateinit var url: EditText
+
     private lateinit var adBlock: CheckBox
     private lateinit var hideCookieBanners: CheckBox
     private lateinit var showUpdateStatus: CheckBox
     private lateinit var autoSwitchViews: CheckBox
+
+    /*
+     * ----------------------------------------
+     * UDSEENDE
+     * ----------------------------------------
+     */
+    private lateinit var roundedCorners: CheckBox
+    private lateinit var showBorder: CheckBox
+    private lateinit var showBackground: CheckBox
 
     private lateinit var refreshSlider: SeekBar
     private lateinit var refreshLabel: TextView
@@ -54,13 +68,22 @@ class SetupActivity : Activity() {
     private var appWidgetId =
         AppWidgetManager.INVALID_APPWIDGET_ID
 
-    private val chooseHtmlRequest = 42
-    private val exportBackupRequest = 43
-    private val importBackupRequest = 44
+    private val chooseHtmlRequest =
+        42
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    private val exportBackupRequest =
+        43
 
-        super.onCreate(savedInstanceState)
+    private val importBackupRequest =
+        44
+
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
+
+        super.onCreate(
+            savedInstanceState
+        )
 
         appWidgetId =
             intent?.extras?.getInt(
@@ -70,7 +93,9 @@ class SetupActivity : Activity() {
 
         val layout =
             LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
+
+                orientation =
+                    LinearLayout.VERTICAL
 
                 setPadding(
                     40,
@@ -81,26 +106,36 @@ class SetupActivity : Activity() {
             }
 
         /*
+         * ----------------------------------------
          * TITEL
+         * ----------------------------------------
          */
         layout.addView(
             TextView(this).apply {
-                text = "HTML Widget"
-                textSize = 26f
+
+                text =
+                    "HTML Widget"
+
+                textSize =
+                    26f
             }
         )
 
         layout.addView(
             TextView(this).apply {
+
                 text =
                     "Indsæt adressen på en hjemmeside eller vælg en HTML-fil fra telefonen."
 
-                textSize = 16f
+                textSize =
+                    16f
             }
         )
 
         /*
+         * ----------------------------------------
          * WIDGET-NAVN
+         * ----------------------------------------
          */
         widgetName =
             EditText(this).apply {
@@ -115,13 +150,19 @@ class SetupActivity : Activity() {
                     )
                 )
 
-                setSingleLine(true)
+                setSingleLine(
+                    true
+                )
             }
 
-        layout.addView(widgetName)
+        layout.addView(
+            widgetName
+        )
 
         /*
+         * ----------------------------------------
          * WEBSITE
+         * ----------------------------------------
          */
         url =
             EditText(this).apply {
@@ -136,13 +177,19 @@ class SetupActivity : Activity() {
                     )
                 )
 
-                setSingleLine(true)
+                setSingleLine(
+                    true
+                )
             }
 
-        layout.addView(url)
+        layout.addView(
+            url
+        )
 
         /*
+         * ----------------------------------------
          * GENBRUG HJEMMESIDE
+         * ----------------------------------------
          */
         layout.addView(
             Button(this).apply {
@@ -151,13 +198,16 @@ class SetupActivity : Activity() {
                     "Genbrug hjemmeside fra anden widget"
 
                 setOnClickListener {
+
                     showReusableWebsiteDialog()
                 }
             }
         )
 
         /*
+         * ----------------------------------------
          * VÆLG OMRÅDE
+         * ----------------------------------------
          */
         layout.addView(
             Button(this).apply {
@@ -172,7 +222,9 @@ class SetupActivity : Activity() {
                             .toString()
                             .trim()
 
-                    if (website.isEmpty()) {
+                    if (
+                        website.isEmpty()
+                    ) {
 
                         Toast.makeText(
                             this@SetupActivity,
@@ -207,13 +259,17 @@ class SetupActivity : Activity() {
                             )
                         }
 
-                    startActivity(cropIntent)
+                    startActivity(
+                        cropIntent
+                    )
                 }
             }
         )
 
         /*
+         * ----------------------------------------
          * LOKAL HTML-FIL
+         * ----------------------------------------
          */
         layout.addView(
             Button(this).apply {
@@ -250,7 +306,9 @@ class SetupActivity : Activity() {
         )
 
         /*
+         * ----------------------------------------
          * REKLAMEBLOKERING
+         * ----------------------------------------
          */
         adBlock =
             CheckBox(this).apply {
@@ -265,10 +323,14 @@ class SetupActivity : Activity() {
                     )
             }
 
-        layout.addView(adBlock)
+        layout.addView(
+            adBlock
+        )
 
         /*
+         * ----------------------------------------
          * COOKIE-BANNERE
+         * ----------------------------------------
          */
         hideCookieBanners =
             CheckBox(this).apply {
@@ -286,7 +348,9 @@ class SetupActivity : Activity() {
                     )
             }
 
-        layout.addView(hideCookieBanners)
+        layout.addView(
+            hideCookieBanners
+        )
 
         layout.addView(
             TextView(this).apply {
@@ -294,7 +358,8 @@ class SetupActivity : Activity() {
                 text =
                     "Forsøger automatisk at fjerne kendte cookie- og samtykke-bannere."
 
-                textSize = 13f
+                textSize =
+                    13f
 
                 setPadding(
                     10,
@@ -306,7 +371,9 @@ class SetupActivity : Activity() {
         )
 
         /*
+         * ----------------------------------------
          * OPDATERINGSSTATUS
+         * ----------------------------------------
          */
         showUpdateStatus =
             CheckBox(this).apply {
@@ -321,7 +388,9 @@ class SetupActivity : Activity() {
                     )
             }
 
-        layout.addView(showUpdateStatus)
+        layout.addView(
+            showUpdateStatus
+        )
 
         layout.addView(
             TextView(this).apply {
@@ -329,7 +398,8 @@ class SetupActivity : Activity() {
                 text =
                     "Viser “Opdaterer…” og derefter tidspunktet for den seneste manuelle opdatering."
 
-                textSize = 13f
+                textSize =
+                    13f
 
                 setPadding(
                     10,
@@ -341,7 +411,9 @@ class SetupActivity : Activity() {
         )
 
         /*
+         * ----------------------------------------
          * AUTOMATISK SKIFT MELLEM VISNINGER
+         * ----------------------------------------
          */
         autoSwitchViews =
             CheckBox(this).apply {
@@ -356,7 +428,9 @@ class SetupActivity : Activity() {
                     )
             }
 
-        layout.addView(autoSwitchViews)
+        layout.addView(
+            autoSwitchViews
+        )
 
         layout.addView(
             TextView(this).apply {
@@ -364,7 +438,8 @@ class SetupActivity : Activity() {
                 text =
                     "Widgetten kan automatisk skifte mellem flere gemte områder."
 
-                textSize = 13f
+                textSize =
+                    13f
 
                 setPadding(
                     10,
@@ -376,7 +451,128 @@ class SetupActivity : Activity() {
         )
 
         /*
+         * ========================================
+         * UDSEENDE
+         * ========================================
+         */
+        layout.addView(
+            TextView(this).apply {
+
+                text =
+                    "Udseende"
+
+                textSize =
+                    20f
+
+                setPadding(
+                    0,
+                    20,
+                    0,
+                    5
+                )
+            }
+        )
+
+        layout.addView(
+            TextView(this).apply {
+
+                text =
+                    "Vælg udseendet for denne widget."
+
+                textSize =
+                    13f
+
+                setPadding(
+                    0,
+                    0,
+                    0,
+                    5
+                )
+            }
+        )
+
+        /*
+         * AFRUNDEDE HJØRNER
+         */
+        roundedCorners =
+            CheckBox(this).apply {
+
+                text =
+                    "Afrundede hjørner"
+
+                isChecked =
+                    prefs.getBoolean(
+                        "roundedCorners_$appWidgetId",
+                        true
+                    )
+            }
+
+        layout.addView(
+            roundedCorners
+        )
+
+        /*
+         * KANT
+         */
+        showBorder =
+            CheckBox(this).apply {
+
+                text =
+                    "Vis kant"
+
+                isChecked =
+                    prefs.getBoolean(
+                        "showBorder_$appWidgetId",
+                        false
+                    )
+            }
+
+        layout.addView(
+            showBorder
+        )
+
+        /*
+         * BAGGRUND
+         */
+        showBackground =
+            CheckBox(this).apply {
+
+                text =
+                    "Vis baggrund"
+
+                isChecked =
+                    prefs.getBoolean(
+                        "showBackground_$appWidgetId",
+                        true
+                    )
+            }
+
+        layout.addView(
+            showBackground
+        )
+
+        layout.addView(
+            TextView(this).apply {
+
+                text =
+                    "Indstillingerne gælder kun for denne widget."
+
+                textSize =
+                    13f
+
+                setPadding(
+                    10,
+                    0,
+                    10,
+                    20
+                )
+            }
+        )
+
+        /*
+         * ----------------------------------------
          * OPDATERINGSINTERVAL
+         * ----------------------------------------
          */
         val savedRefreshMinutes =
             prefs.getInt(
@@ -386,7 +582,9 @@ class SetupActivity : Activity() {
 
         refreshLabel =
             TextView(this).apply {
-                textSize = 16f
+
+                textSize =
+                    16f
             }
 
         refreshSlider =
@@ -397,42 +595,55 @@ class SetupActivity : Activity() {
 
                 progress =
                     refreshValues
-                        .indexOf(savedRefreshMinutes)
-                        .coerceAtLeast(0)
+                        .indexOf(
+                            savedRefreshMinutes
+                        )
+                        .coerceAtLeast(
+                            0
+                        )
             }
 
-        refreshSlider.setOnSeekBarChangeListener(
+        refreshSlider
+            .setOnSeekBarChangeListener(
 
-            object :
-                SeekBar.OnSeekBarChangeListener {
+                object :
+                    SeekBar.OnSeekBarChangeListener {
 
-                override fun onProgressChanged(
-                    seekBar: SeekBar?,
-                    progress: Int,
-                    fromUser: Boolean
-                ) {
-                    updateRefreshLabel()
+                    override fun onProgressChanged(
+                        seekBar: SeekBar?,
+                        progress: Int,
+                        fromUser: Boolean
+                    ) {
+
+                        updateRefreshLabel()
+                    }
+
+                    override fun onStartTrackingTouch(
+                        seekBar: SeekBar?
+                    ) {
+                    }
+
+                    override fun onStopTrackingTouch(
+                        seekBar: SeekBar?
+                    ) {
+                    }
                 }
-
-                override fun onStartTrackingTouch(
-                    seekBar: SeekBar?
-                ) {
-                }
-
-                override fun onStopTrackingTouch(
-                    seekBar: SeekBar?
-                ) {
-                }
-            }
-        )
+            )
 
         updateRefreshLabel()
 
-        layout.addView(refreshLabel)
-        layout.addView(refreshSlider)
+        layout.addView(
+            refreshLabel
+        )
+
+        layout.addView(
+            refreshSlider
+        )
 
         /*
+         * ----------------------------------------
          * PREVIEW
+         * ----------------------------------------
          */
         layout.addView(
             Button(this).apply {
@@ -454,13 +665,17 @@ class SetupActivity : Activity() {
                             )
                         }
 
-                    startActivity(previewIntent)
+                    startActivity(
+                        previewIntent
+                    )
                 }
             }
         )
 
         /*
+         * ----------------------------------------
          * BACKUP
+         * ----------------------------------------
          */
         layout.addView(
             TextView(this).apply {
@@ -468,7 +683,8 @@ class SetupActivity : Activity() {
                 text =
                     "Backup"
 
-                textSize = 20f
+                textSize =
+                    20f
 
                 setPadding(
                     0,
@@ -485,7 +701,8 @@ class SetupActivity : Activity() {
                 text =
                     "Gem eller gendan indstillingerne for denne widget."
 
-                textSize = 13f
+                textSize =
+                    13f
 
                 setPadding(
                     0,
@@ -506,6 +723,7 @@ class SetupActivity : Activity() {
                     "Eksporter backup"
 
                 setOnClickListener {
+
                     exportBackup()
                 }
             }
@@ -521,6 +739,7 @@ class SetupActivity : Activity() {
                     "Importer backup"
 
                 setOnClickListener {
+
                     importBackup()
                 }
             }
@@ -536,23 +755,30 @@ class SetupActivity : Activity() {
                     "Gem og opdater widget"
 
                 setOnClickListener {
+
                     saveWidgetSettings()
                 }
             }
         )
 
         /*
+         * ----------------------------------------
          * SCROLLBAR
+         * ----------------------------------------
          */
         setContentView(
             ScrollView(this).apply {
-                addView(layout)
+
+                addView(
+                    layout
+                )
             }
         )
     }
-
-    /*
+        /*
+     * ----------------------------------------
      * OPDATER REFRESH-TEKST
+     * ----------------------------------------
      */
     private fun updateRefreshLabel() {
 
@@ -562,7 +788,9 @@ class SetupActivity : Activity() {
             ]
 
         refreshLabel.text =
-            if (minutes < 60) {
+            if (
+                minutes < 60
+            ) {
 
                 "Opdateringsfrekvens: $minutes minutter"
 
@@ -571,7 +799,9 @@ class SetupActivity : Activity() {
                 val hours =
                     minutes / 60
 
-                if (hours == 1) {
+                if (
+                    hours == 1
+                ) {
 
                     "Opdateringsfrekvens: 1 time"
 
@@ -583,7 +813,9 @@ class SetupActivity : Activity() {
     }
 
     /*
+     * ----------------------------------------
      * GEM WIDGET
+     * ----------------------------------------
      */
     private fun saveWidgetSettings() {
 
@@ -604,7 +836,9 @@ class SetupActivity : Activity() {
                 widgetNameValue
             )
 
-            if (website.isNotEmpty()) {
+            if (
+                website.isNotEmpty()
+            ) {
 
                 putString(
                     "url_$appWidgetId",
@@ -615,7 +849,9 @@ class SetupActivity : Activity() {
                     "localUri_$appWidgetId"
                 )
 
-            } else if (localUri != null) {
+            } else if (
+                localUri != null
+            ) {
 
                 putString(
                     "localUri_$appWidgetId",
@@ -652,6 +888,26 @@ class SetupActivity : Activity() {
                 autoSwitchViews.isChecked
             )
 
+            /*
+             * ----------------------------------------
+             * UDSEENDE
+             * ----------------------------------------
+             */
+            putBoolean(
+                "roundedCorners_$appWidgetId",
+                roundedCorners.isChecked
+            )
+
+            putBoolean(
+                "showBorder_$appWidgetId",
+                showBorder.isChecked
+            )
+
+            putBoolean(
+                "showBackground_$appWidgetId",
+                showBackground.isChecked
+            )
+
             putInt(
                 "refreshMinutes_$appWidgetId",
                 refreshValues[
@@ -671,7 +927,9 @@ class SetupActivity : Activity() {
 
             HtmlWidgetProvider.refresh(
                 this,
-                intArrayOf(appWidgetId)
+                intArrayOf(
+                    appWidgetId
+                )
             )
 
             val resultValue =
@@ -699,7 +957,9 @@ class SetupActivity : Activity() {
     }
 
     /*
+     * ----------------------------------------
      * PLANLÆG AUTOMATISK REFRESH
+     * ----------------------------------------
      */
     private fun scheduleRefresh() {
 
@@ -739,7 +999,9 @@ class SetupActivity : Activity() {
     }
 
     /*
+     * ----------------------------------------
      * EKSPORTER BACKUP
+     * ----------------------------------------
      */
     private fun exportBackup() {
 
@@ -782,7 +1044,9 @@ class SetupActivity : Activity() {
     }
 
     /*
+     * ----------------------------------------
      * IMPORTER BACKUP
+     * ----------------------------------------
      */
     private fun importBackup() {
 
@@ -824,9 +1088,12 @@ class SetupActivity : Activity() {
     }
 
     /*
+     * ----------------------------------------
      * LAV BACKUP-JSON
+     * ----------------------------------------
      */
-    private fun createBackupJson(): JSONObject {
+    private fun createBackupJson():
+        JSONObject {
 
         val backup =
             JSONObject()
@@ -852,12 +1119,18 @@ class SetupActivity : Activity() {
         val widget =
             JSONObject()
 
-        fun putString(name: String) {
+        fun putString(
+            name: String
+        ) {
 
             val key =
                 "${name}_$appWidgetId"
 
-            if (prefs.contains(key)) {
+            if (
+                prefs.contains(
+                    key
+                )
+            ) {
 
                 widget.put(
                     name,
@@ -869,12 +1142,18 @@ class SetupActivity : Activity() {
             }
         }
 
-        fun putBoolean(name: String) {
+        fun putBoolean(
+            name: String
+        ) {
 
             val key =
                 "${name}_$appWidgetId"
 
-            if (prefs.contains(key)) {
+            if (
+                prefs.contains(
+                    key
+                )
+            ) {
 
                 widget.put(
                     name,
@@ -886,12 +1165,18 @@ class SetupActivity : Activity() {
             }
         }
 
-        fun putInt(name: String) {
+        fun putInt(
+            name: String
+        ) {
 
             val key =
                 "${name}_$appWidgetId"
 
-            if (prefs.contains(key)) {
+            if (
+                prefs.contains(
+                    key
+                )
+            ) {
 
                 widget.put(
                     name,
@@ -903,12 +1188,18 @@ class SetupActivity : Activity() {
             }
         }
 
-        fun putFloat(name: String) {
+        fun putFloat(
+            name: String
+        ) {
 
             val key =
                 "${name}_$appWidgetId"
 
-            if (prefs.contains(key)) {
+            if (
+                prefs.contains(
+                    key
+                )
+            ) {
 
                 widget.put(
                     name,
@@ -920,45 +1211,128 @@ class SetupActivity : Activity() {
             }
         }
 
-        putString("widgetName")
-        putString("url")
-        putString("localUri")
+        putString(
+            "widgetName"
+        )
 
-        putBoolean("hideCookieBanners")
-        putBoolean("showUpdateStatus")
-        putBoolean("autoSwitchViews")
+        putString(
+            "url"
+        )
 
-        putInt("refreshMinutes")
+        putString(
+            "localUri"
+        )
 
-        putBoolean("cropEnabled")
+        putBoolean(
+            "hideCookieBanners"
+        )
 
-        putFloat("cropCssX")
-        putFloat("cropCssY")
-        putFloat("cropCssWidth")
-        putFloat("cropCssHeight")
+        putBoolean(
+            "showUpdateStatus"
+        )
 
-        putFloat("cropCssViewportWidth")
-        putFloat("cropCssViewportHeight")
+        putBoolean(
+            "autoSwitchViews"
+        )
 
-        putFloat("cropCssDocumentWidth")
-        putFloat("cropCssDocumentHeight")
+        /*
+         * UDSEENDE
+         */
+        putBoolean(
+            "roundedCorners"
+        )
 
-        putInt("cropViewportWidth")
-        putInt("cropViewportHeight")
+        putBoolean(
+            "showBorder"
+        )
 
-        putFloat("cropWebScale")
+        putBoolean(
+            "showBackground"
+        )
 
-        putInt("cropSelectionWidth")
-        putInt("cropSelectionHeight")
+        putInt(
+            "refreshMinutes"
+        )
 
-        putInt("websiteScrollX")
-        putInt("websiteScrollY")
+        putBoolean(
+            "cropEnabled"
+        )
 
-        putFloat("cropFrameX")
-        putFloat("cropFrameY")
+        putFloat(
+            "cropCssX"
+        )
 
-        putInt("cropFrameWidth")
-        putInt("cropFrameHeight")
+        putFloat(
+            "cropCssY"
+        )
+
+        putFloat(
+            "cropCssWidth"
+        )
+
+        putFloat(
+            "cropCssHeight"
+        )
+
+        putFloat(
+            "cropCssViewportWidth"
+        )
+
+        putFloat(
+            "cropCssViewportHeight"
+        )
+
+        putFloat(
+            "cropCssDocumentWidth"
+        )
+
+        putFloat(
+            "cropCssDocumentHeight"
+        )
+
+        putInt(
+            "cropViewportWidth"
+        )
+
+        putInt(
+            "cropViewportHeight"
+        )
+
+        putFloat(
+            "cropWebScale"
+        )
+
+        putInt(
+            "cropSelectionWidth"
+        )
+
+        putInt(
+            "cropSelectionHeight"
+        )
+
+        putInt(
+            "websiteScrollX"
+        )
+
+        putInt(
+            "websiteScrollY"
+        )
+
+        putFloat(
+            "cropFrameX"
+        )
+
+        putFloat(
+            "cropFrameY"
+        )
+
+        putInt(
+            "cropFrameWidth"
+        )
+
+        putInt(
+            "cropFrameHeight"
+        )
 
         backup.put(
             "widget",
@@ -967,8 +1341,11 @@ class SetupActivity : Activity() {
 
         return backup
     }
-        /*
+
+    /*
+     * ----------------------------------------
      * SKRIV BACKUP
+     * ----------------------------------------
      */
     private fun writeBackup(
         uri: Uri
@@ -978,13 +1355,20 @@ class SetupActivity : Activity() {
 
             val json =
                 createBackupJson()
-                    .toString(2)
+                    .toString(
+                        2
+                    )
 
             contentResolver
-                .openOutputStream(uri)
+                .openOutputStream(
+                    uri
+                )
                 ?.bufferedWriter()
                 ?.use {
-                    it.write(json)
+
+                    it.write(
+                        json
+                    )
                 }
                 ?: throw Exception(
                     "Kunne ikke åbne filen"
@@ -1007,7 +1391,9 @@ class SetupActivity : Activity() {
     }
 
     /*
+     * ----------------------------------------
      * LÆS OG IMPORTER BACKUP
+     * ----------------------------------------
      */
     private fun readBackup(
         uri: Uri
@@ -1017,9 +1403,12 @@ class SetupActivity : Activity() {
 
             val jsonText =
                 contentResolver
-                    .openInputStream(uri)
+                    .openInputStream(
+                        uri
+                    )
                     ?.bufferedReader()
                     ?.use {
+
                         it.readText()
                     }
                     ?: throw Exception(
@@ -1027,7 +1416,9 @@ class SetupActivity : Activity() {
                     )
 
             val backup =
-                JSONObject(jsonText)
+                JSONObject(
+                    jsonText
+                )
 
             val backupVersion =
                 backup.optInt(
@@ -1035,7 +1426,9 @@ class SetupActivity : Activity() {
                     -1
                 )
 
-            if (backupVersion != 1) {
+            if (
+                backupVersion != 1
+            ) {
 
                 Toast.makeText(
                     this,
@@ -1076,15 +1469,21 @@ class SetupActivity : Activity() {
             }
 
             /*
+             * ----------------------------------------
              * HJÆLPEFUNKTIONER
+             * ----------------------------------------
              */
             fun importString(
                 name: String
             ) {
 
                 if (
-                    widget.has(name) &&
-                    !widget.isNull(name)
+                    widget.has(
+                        name
+                    ) &&
+                    !widget.isNull(
+                        name
+                    )
                 ) {
 
                     editor.putString(
@@ -1101,7 +1500,11 @@ class SetupActivity : Activity() {
                 name: String
             ) {
 
-                if (widget.has(name)) {
+                if (
+                    widget.has(
+                        name
+                    )
+                ) {
 
                     editor.putBoolean(
                         "${name}_$appWidgetId",
@@ -1117,7 +1520,11 @@ class SetupActivity : Activity() {
                 name: String
             ) {
 
-                if (widget.has(name)) {
+                if (
+                    widget.has(
+                        name
+                    )
+                ) {
 
                     editor.putInt(
                         "${name}_$appWidgetId",
@@ -1133,7 +1540,11 @@ class SetupActivity : Activity() {
                 name: String
             ) {
 
-                if (widget.has(name)) {
+                if (
+                    widget.has(
+                        name
+                    )
+                ) {
 
                     editor.putFloat(
                         "${name}_$appWidgetId",
@@ -1187,6 +1598,21 @@ class SetupActivity : Activity() {
 
             importBoolean(
                 "autoSwitchViews"
+            )
+
+            /*
+             * UDSEENDE
+             */
+            importBoolean(
+                "roundedCorners"
+            )
+
+            importBoolean(
+                "showBorder"
+            )
+
+            importBoolean(
+                "showBackground"
             )
 
             importInt(
@@ -1342,7 +1768,9 @@ class SetupActivity : Activity() {
     }
 
     /*
+     * ----------------------------------------
      * OPDATER SKÆRM EFTER IMPORT
+     * ----------------------------------------
      */
     private fun updateUiAfterImport() {
 
@@ -1417,6 +1845,29 @@ class SetupActivity : Activity() {
                 false
             )
 
+        /*
+         * ----------------------------------------
+         * UDSEENDE EFTER IMPORT
+         * ----------------------------------------
+         */
+        roundedCorners.isChecked =
+            prefs.getBoolean(
+                "roundedCorners_$appWidgetId",
+                true
+            )
+
+        showBorder.isChecked =
+            prefs.getBoolean(
+                "showBorder_$appWidgetId",
+                false
+            )
+
+        showBackground.isChecked =
+            prefs.getBoolean(
+                "showBackground_$appWidgetId",
+                true
+            )
+
         val importedRefresh =
             prefs.getInt(
                 "refreshMinutes_$appWidgetId",
@@ -1445,14 +1896,18 @@ class SetupActivity : Activity() {
     }
 
     /*
+     * ----------------------------------------
      * GENBRUG HJEMMESIDE FRA ANDEN WIDGET
+     * ----------------------------------------
      */
     private fun showReusableWebsiteDialog() {
 
         val widgets =
             findReusableWebsiteWidgets()
 
-        if (widgets.isEmpty()) {
+        if (
+            widgets.isEmpty()
+        ) {
 
             Toast.makeText(
                 this,
@@ -1470,7 +1925,9 @@ class SetupActivity : Activity() {
                 }
                 .toTypedArray()
 
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(
+            this
+        )
             .setTitle(
                 "Vælg widget"
             )
@@ -1479,7 +1936,9 @@ class SetupActivity : Activity() {
             ) { _, position ->
 
                 val sourceWidgetId =
-                    widgets[position].first
+                    widgets[
+                        position
+                    ].first
 
                 val sourceUrl =
                     prefs.getString(
@@ -1489,7 +1948,9 @@ class SetupActivity : Activity() {
                         ?.trim()
                         .orEmpty()
 
-                if (sourceUrl.isNotEmpty()) {
+                if (
+                    sourceUrl.isNotEmpty()
+                ) {
 
                     url.setText(
                         sourceUrl
@@ -1513,16 +1974,21 @@ class SetupActivity : Activity() {
     }
 
     /*
+     * ----------------------------------------
      * FIND ANDRE WEBSITE-WIDGETS
+     * ----------------------------------------
      */
     private fun findReusableWebsiteWidgets():
         List<Pair<Int, String>> {
 
         val result =
-            mutableListOf<Pair<Int, String>>()
+            mutableListOf<
+                Pair<Int, String>
+                >()
 
         prefs.all.keys
             .filter {
+
                 it.startsWith(
                     "url_"
                 )
@@ -1537,8 +2003,10 @@ class SetupActivity : Activity() {
                         ?: return@forEach
 
                 if (
-                    id == appWidgetId
+                    id ==
+                    appWidgetId
                 ) {
+
                     return@forEach
                 }
 
@@ -1553,6 +2021,7 @@ class SetupActivity : Activity() {
                 if (
                     website.isEmpty()
                 ) {
+
                     return@forEach
                 }
 
@@ -1577,18 +2046,23 @@ class SetupActivity : Activity() {
                     }
 
                 result.add(
-                    id to displayName
+                    id to
+                        displayName
                 )
             }
 
         return result
             .sortedBy {
-                it.second.lowercase()
+
+                it.second
+                    .lowercase()
             }
     }
 
     /*
+     * ----------------------------------------
      * RESULTATER
+     * ----------------------------------------
      */
     override fun onActivityResult(
         requestCode: Int,
@@ -1628,7 +2102,9 @@ class SetupActivity : Activity() {
                 localUri =
                     uri
 
-                url.setText("")
+                url.setText(
+                    ""
+                )
 
                 Toast.makeText(
                     this,
