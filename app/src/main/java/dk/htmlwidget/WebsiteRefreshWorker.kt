@@ -246,12 +246,6 @@ class WebsiteRefreshWorker(
          * ----------------------------------------
          * AUTOMATISK SKIFT MELLEM VISNINGER
          * ----------------------------------------
-         *
-         * Visning 1 bruger fortsat de gamle
-         * crop-nøgler.
-         *
-         * Det betyder, at eksisterende widgets
-         * fortsætter med at virke som før.
          */
         val autoSwitchViews =
             prefs.getBoolean(
@@ -294,13 +288,6 @@ class WebsiteRefreshWorker(
                 1
             }
 
-        /*
-         * Visning 1 læses fra de oprindelige
-         * nøgler.
-         *
-         * Visning 2, 3, 4 osv. læses fra de
-         * nye nummererede nøgler.
-         */
         val cropEnabled =
             if (
                 selectedView == 1
@@ -520,11 +507,6 @@ class WebsiteRefreshWorker(
         var completed =
             false
 
-        /*
-         * Denne værdi fortæller cleanup(),
-         * om vi rent faktisk nåede frem til
-         * et færdigt og gyldigt widgetbillede.
-         */
         var renderSucceeded =
             false
 
@@ -575,12 +557,6 @@ class WebsiteRefreshWorker(
             } catch (_: Exception) {
             }
 
-            /*
-             * Manuel fejl:
-             *
-             * Vi ændrer kun status.
-             * Det gamle billede bliver stående.
-             */
             if (
                 manualRefresh &&
                 !renderSucceeded
@@ -644,9 +620,6 @@ class WebsiteRefreshWorker(
             )
         }
 
-        /*
-         * Beregn checksum af det færdige billede.
-         */
         fun bitmapChecksum(
             bitmap: Bitmap
         ): Long {
@@ -749,10 +722,10 @@ class WebsiteRefreshWorker(
                             .coerceAtLeast(0)
 
                     } else {
-                                                0
-                    }
 
-                val drawY =
+                        0
+                    }
+                                    val drawY =
                     if (
                         cropEnabled
                     ) {
@@ -853,10 +826,9 @@ class WebsiteRefreshWorker(
                  * KANT DIREKTE PÅ WIDGET-BILLEDET
                  * ----------------------------------------
                  *
-                 * Ingen ekstra View i widget_layout.xml.
-                 *
-                 * Derfor undgår vi fejlen:
-                 * "Widget kan ikke vises".
+                 * Kanten ligger lidt længere inde i
+                 * bitmap'et, så Android-launcherens
+                 * afrunding ikke klipper den væk.
                  */
                 val showBorder =
                     prefs.getBoolean(
@@ -873,15 +845,33 @@ class WebsiteRefreshWorker(
                             finalBitmap
                         )
 
+                    /*
+                     * 2 dp synlig kant.
+                     */
                     val borderWidth =
                         (2f * density)
                             .coerceAtLeast(1f)
 
+                    /*
+                     * Vi flytter kanten lidt længere
+                     * ind end kun halvdelen af stregen.
+                     *
+                     * Det giver luft til launcherens
+                     * egen afrundede beskæring.
+                     */
                     val borderInset =
-                        borderWidth / 2f
+                        (4f * density)
+                            .coerceAtLeast(
+                                borderWidth
+                            )
 
+                    /*
+                     * Lidt større runding end før.
+                     * Det passer bedre til Androids
+                     * afrundede widgethjørner.
+                     */
                     val cornerRadius =
-                        18f * density
+                        24f * density
 
                     val borderPaint =
                         Paint(
@@ -1059,14 +1049,6 @@ class WebsiteRefreshWorker(
                  * ----------------------------------------
                  * GEM AKTUEL VISNING
                  * ----------------------------------------
-                 *
-                 * VIGTIGT:
-                 *
-                 * Vi gemmer først selectedView EFTER
-                 * en vellykket rendering.
-                 *
-                 * Hvis renderingen fejler, springer
-                 * widgetten derfor ikke en visning over.
                  */
                 if (
                     autoSwitchViews &&
@@ -1110,11 +1092,6 @@ class WebsiteRefreshWorker(
 
                 /*
                  * FEJL:
-                 *
-                 * Ingen updateAppWidget.
-                 * Ingen ny checksum.
-                 * Intet nyt success-tidspunkt.
-                 * Ingen ændring af currentCropView.
                  *
                  * Det sidste gode billede
                  * bliver stående.
@@ -1480,13 +1457,6 @@ class WebsiteRefreshWorker(
                 address
             )
 
-            /*
-             * Sikkerhedstimeout.
-             *
-             * Hvis vi når hertil uden et
-             * færdigt billede, vil cleanup()
-             * vise fejlstatus ved manuel refresh.
-             */
             mainHandler.postDelayed({
 
                 if (
