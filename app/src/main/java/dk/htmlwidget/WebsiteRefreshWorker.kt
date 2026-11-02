@@ -860,7 +860,7 @@ class WebsiteRefreshWorker(
                      * egen afrundede beskæring.
                      */
                     val borderInset =
-    1.25f * density
+    0.75f * density
 
 val cornerRadius =
     18f * density
