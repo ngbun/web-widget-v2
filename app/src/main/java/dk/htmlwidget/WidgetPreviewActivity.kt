@@ -2,21 +2,74 @@ package dk.htmlwidget
 
 import android.app.Activity
 import android.appwidget.AppWidgetManager
+import android.content.Context
+import android.content.res.Configuration
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
-import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import java.io.File
+import java.util.Locale
 
 class WidgetPreviewActivity : Activity() {
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    private fun text(
+        resId: Int,
+        vararg formatArgs: Any
+    ): String {
+
+        val prefs =
+            getSharedPreferences(
+                "settings",
+                MODE_PRIVATE
+            )
+
+        val language =
+            prefs.getString(
+                "appLanguage",
+                "da"
+            ) ?: "da"
+
+        val configuration =
+            Configuration(
+                resources.configuration
+            )
+
+        configuration.setLocale(
+            Locale(language)
+        )
+
+        val localizedContext: Context =
+            createConfigurationContext(
+                configuration
+            )
+
+        return if (
+            formatArgs.isEmpty()
+        ) {
+
+            localizedContext.getString(
+                resId
+            )
+
+        } else {
+
+            localizedContext.getString(
+                resId,
+                *formatArgs
+            )
+        }
+    }
+
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
+
         super.onCreate(savedInstanceState)
 
         val appWidgetId =
@@ -36,11 +89,14 @@ class WidgetPreviewActivity : Activity() {
                 appWidgetId !=
                 AppWidgetManager.INVALID_APPWIDGET_ID
             ) {
+
                 prefs.getString(
                     "widgetName_$appWidgetId",
                     ""
                 ).orEmpty()
+
             } else {
+
                 ""
             }
 
@@ -49,11 +105,14 @@ class WidgetPreviewActivity : Activity() {
                 appWidgetId !=
                 AppWidgetManager.INVALID_APPWIDGET_ID
             ) {
+
                 prefs.getBoolean(
                     "roundedCorners_$appWidgetId",
                     true
                 )
+
             } else {
+
                 true
             }
 
@@ -62,11 +121,14 @@ class WidgetPreviewActivity : Activity() {
                 appWidgetId !=
                 AppWidgetManager.INVALID_APPWIDGET_ID
             ) {
+
                 prefs.getBoolean(
                     "showBorder_$appWidgetId",
                     false
                 )
+
             } else {
+
                 false
             }
 
@@ -75,11 +137,14 @@ class WidgetPreviewActivity : Activity() {
                 appWidgetId !=
                 AppWidgetManager.INVALID_APPWIDGET_ID
             ) {
+
                 prefs.getBoolean(
                     "showBackground_$appWidgetId",
                     true
                 )
+
             } else {
+
                 true
             }
 
@@ -100,6 +165,9 @@ class WidgetPreviewActivity : Activity() {
                 )
             }
 
+        /*
+         * OVERSKRIFT
+         */
         root.addView(
             TextView(this).apply {
 
@@ -107,20 +175,33 @@ class WidgetPreviewActivity : Activity() {
                     if (
                         widgetName.isNotBlank()
                     ) {
-                        "Preview · $widgetName"
+
+                        text(
+                            R.string.preview_title_named,
+                            widgetName
+                        )
+
                     } else {
-                        "Preview"
+
+                        text(
+                            R.string.preview_title
+                        )
                     }
 
                 textSize = 26f
             }
         )
 
+        /*
+         * BESKRIVELSE
+         */
         root.addView(
             TextView(this).apply {
 
                 text =
-                    "Sådan ser det senest gemte billede til widgetten ud."
+                    text(
+                        R.string.preview_description
+                    )
 
                 textSize = 14f
 
@@ -133,6 +214,9 @@ class WidgetPreviewActivity : Activity() {
             }
         )
 
+        /*
+         * PREVIEW CONTAINER
+         */
         val previewContainer =
             FrameLayout(this).apply {
 
@@ -146,8 +230,11 @@ class WidgetPreviewActivity : Activity() {
                     if (
                         roundedCorners
                     ) {
+
                         18f * density
+
                     } else {
+
                         0f
                     }
 
@@ -185,6 +272,7 @@ class WidgetPreviewActivity : Activity() {
                 if (
                     roundedCorners
                 ) {
+
                     clipToOutline = true
                 }
             }
@@ -207,6 +295,9 @@ class WidgetPreviewActivity : Activity() {
             )
         )
 
+        /*
+         * HENT SENEST GEMTE BILLEDE
+         */
         val imageFile =
             File(
                 filesDir,
@@ -268,7 +359,9 @@ class WidgetPreviewActivity : Activity() {
             TextView(this).apply {
 
                 text =
-                    "Der er endnu ikke et preview."
+                    text(
+                        R.string.preview_none
+                    )
 
                 textSize =
                     18f
