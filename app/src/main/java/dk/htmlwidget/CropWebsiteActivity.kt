@@ -2,6 +2,8 @@ package dk.htmlwidget
 
 import android.app.Activity
 import android.appwidget.AppWidgetManager
+import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -15,6 +17,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import java.util.Locale
 import kotlin.math.roundToInt
 
 class CropWebsiteActivity : Activity() {
@@ -23,6 +26,54 @@ class CropWebsiteActivity : Activity() {
         AppWidgetManager.INVALID_APPWIDGET_ID
 
     private lateinit var webView: WebView
+
+    private fun text(
+        resId: Int,
+        vararg formatArgs: Any
+    ): String {
+
+        val prefs =
+            getSharedPreferences(
+                "settings",
+                MODE_PRIVATE
+            )
+
+        val language =
+            prefs.getString(
+                "appLanguage",
+                "da"
+            ) ?: "da"
+
+        val configuration =
+            Configuration(
+                resources.configuration
+            )
+
+        configuration.setLocale(
+            Locale(language)
+        )
+
+        val localizedContext: Context =
+            createConfigurationContext(
+                configuration
+            )
+
+        return if (
+            formatArgs.isEmpty()
+        ) {
+
+            localizedContext.getString(
+                resId
+            )
+
+        } else {
+
+            localizedContext.getString(
+                resId,
+                *formatArgs
+            )
+        }
+    }
 
     override fun onCreate(
         savedInstanceState: Bundle?
@@ -67,7 +118,9 @@ class CropWebsiteActivity : Activity() {
 
             Toast.makeText(
                 this,
-                "Der er ikke gemt en gyldig hjemmeside.",
+                text(
+                    R.string.crop_invalid_website
+                ),
                 Toast.LENGTH_LONG
             ).show()
 
@@ -113,7 +166,9 @@ class CropWebsiteActivity : Activity() {
             TextView(this).apply {
 
                 text =
-                    "Scroll på hjemmesiden. Flyt den røde ramme eller træk frit i et af de 4 hjørner."
+                    text(
+                        R.string.crop_instructions
+                    )
 
                 textSize = 16f
 
@@ -137,7 +192,9 @@ class CropWebsiteActivity : Activity() {
             TextView(this).apply {
 
                 text =
-                    "Du kan gemme området som den normale visning eller tilføje det som en ekstra visning til automatisk skift."
+                    text(
+                        R.string.crop_multiple_views_info
+                    )
 
                 textSize = 13f
 
@@ -1003,7 +1060,8 @@ class CropWebsiteActivity : Activity() {
             bottomRight,
             BOTTOM_RIGHT
         )
-                /*
+
+        /*
          * ----------------------------------------
          * GEM OMRÅDE
          * ----------------------------------------
@@ -1061,7 +1119,9 @@ class CropWebsiteActivity : Activity() {
 
                         Toast.makeText(
                             this@CropWebsiteActivity,
-                            "Kunne ikke aflæse hjemmesidens position.",
+                            text(
+                                R.string.crop_position_error
+                            ),
                             Toast.LENGTH_SHORT
                         ).show()
 
@@ -1376,6 +1436,10 @@ class CropWebsiteActivity : Activity() {
                         }
 
                     /*
+                     * DEL 2 FORTSÆTTER HER:
+                     * GEM NUMMERERET VISNING
+                     */
+                                         /*
                      * ----------------------------------------
                      * GEM NUMMERERET VISNING
                      * ----------------------------------------
@@ -1631,16 +1695,10 @@ class CropWebsiteActivity : Activity() {
                         .apply()
 
                     val message =
-                        if (
-                            addAsExtraView
-                        ) {
-
-                            "Visning $viewNumber er gemt"
-
-                        } else {
-
-                            "Visning 1 er gemt"
-                        }
+                        text(
+                            R.string.crop_view_saved,
+                            viewNumber
+                        )
 
                     Toast.makeText(
                         this@CropWebsiteActivity,
@@ -1654,7 +1712,9 @@ class CropWebsiteActivity : Activity() {
 
                     Toast.makeText(
                         this@CropWebsiteActivity,
-                        "Kunne ikke gemme området.",
+                        text(
+                            R.string.crop_save_error
+                        ),
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -1670,7 +1730,9 @@ class CropWebsiteActivity : Activity() {
             Button(this).apply {
 
                 text =
-                    "Gem dette område"
+                    text(
+                        R.string.crop_save_area
+                    )
 
                 setOnClickListener {
 
@@ -1690,7 +1752,9 @@ class CropWebsiteActivity : Activity() {
             Button(this).apply {
 
                 text =
-                    "Tilføj som ekstra visning"
+                    text(
+                        R.string.crop_add_extra_view
+                    )
 
                 setOnClickListener {
 
@@ -1722,11 +1786,16 @@ class CropWebsiteActivity : Activity() {
                             savedViewCount == 1
                         ) {
 
-                            "1 gemt visning"
+                            text(
+                                R.string.crop_one_saved_view
+                            )
 
                         } else {
 
-                            "$savedViewCount gemte visninger"
+                            text(
+                                R.string.crop_saved_views,
+                                savedViewCount
+                            )
                         }
 
                     textSize = 13f
