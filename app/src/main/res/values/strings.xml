@@ -71,4 +71,16 @@
     <string name="website_copied">Hjemmesiden er kopieret – vælg nu dit nye område</string>
     <string name="cancel">Annuller</string>
 
+    <!-- VÆLG OMRÅDE / CROP -->
+    <string name="crop_invalid_website">Der er ikke gemt en gyldig hjemmeside.</string>
+    <string name="crop_instructions">Scroll på hjemmesiden. Flyt den røde ramme eller træk frit i et af de 4 hjørner.</string>
+    <string name="crop_multiple_views_info">Du kan gemme området som den normale visning eller tilføje det som en ekstra visning til automatisk skift.</string>
+    <string name="crop_position_error">Kunne ikke aflæse hjemmesidens position.</string>
+    <string name="crop_view_saved">Visning %1$d er gemt</string>
+    <string name="crop_save_error">Kunne ikke gemme området.</string>
+    <string name="crop_save_area">Gem dette område</string>
+    <string name="crop_add_extra_view">Tilføj som ekstra visning</string>
+    <string name="crop_one_saved_view">1 gemt visning</string>
+    <string name="crop_saved_views">%1$d gemte visninger</string>
+    
 </resources>
