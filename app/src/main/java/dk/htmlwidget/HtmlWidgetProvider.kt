@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
@@ -13,6 +14,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import java.io.File
 
 open class HtmlWidgetProvider :
     AppWidgetProvider() {
@@ -268,6 +270,8 @@ open class HtmlWidgetProvider :
             workManager.cancelUniqueWork(
                 "website-refresh-$id"
             )
+
+            try { File(context.filesDir, "widget_$id.png").delete() } catch (_: Exception) {}
 
             val editor =
                 prefs.edit()
@@ -568,6 +572,23 @@ open class HtmlWidgetProvider :
         private const val ACTION_OPEN_WEBSITE =
             "dk.htmlwidget.OPEN_WEBSITE"
 
+        private fun restoreSavedImage(
+            context: Context,
+            appWidgetId: Int,
+            manager: AppWidgetManager
+        ) {
+            try {
+                val file = File(context.filesDir, "widget_$appWidgetId.png")
+                if (!file.exists() || file.length() <= 0L) return
+                val bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return
+                val views = RemoteViews(context.packageName, R.layout.widget_layout)
+                applyWidgetAppearance(context, appWidgetId, views)
+                views.setImageViewBitmap(R.id.widget_image, bitmap)
+                manager.partiallyUpdateAppWidget(appWidgetId, views)
+            } catch (_: Exception) {
+            }
+        }
+
         /*
          * ----------------------------------------
          * ANVEND WIDGET-UDSEENDE
@@ -764,6 +785,8 @@ open class HtmlWidgetProvider :
                 )
 
             ids.forEach { id ->
+
+                restoreSavedImage(context, id, manager)
 
                 /*
                  * ↻ OPDATER / DOBBELTTRYK INDSTILLINGER
