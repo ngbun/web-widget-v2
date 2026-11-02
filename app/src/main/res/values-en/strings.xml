@@ -82,5 +82,11 @@
     <string name="crop_add_extra_view">Add as extra view</string>
     <string name="crop_one_saved_view">1 saved view</string>
     <string name="crop_saved_views">%1$d saved views</string>
+
+    <!-- PREVIEW SCREEN -->
+    <string name="preview_title">Preview</string>
+    <string name="preview_title_named">Preview · %1$s</string>
+    <string name="preview_description">This is the latest saved image for the widget.</string>
+    <string name="preview_none">There is no preview yet.</string>
     
 </resources>
