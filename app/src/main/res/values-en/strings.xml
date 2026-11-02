@@ -1,4 +1,74 @@
 <resources>
+
     <string name="app_name">Web Widget</string>
     <string name="widget_description">Displays a website or HTML file on the home screen</string>
+
+    <!-- LANGUAGE -->
+    <string name="language_title">Sprog / Language</string>
+    <string name="language_danish">🇩🇰 Dansk</string>
+    <string name="language_english">🇬🇧 English</string>
+
+    <!-- START -->
+    <string name="setup_description">Enter the address of a website or select an HTML file from your phone.</string>
+    <string name="widget_name_hint">Widget name, e.g. Electricity price</string>
+    <string name="website_hint">https://example.com</string>
+
+    <!-- WEBSITE -->
+    <string name="reuse_website">Reuse website from another widget</string>
+    <string name="select_area">Select area on the website</string>
+    <string name="enter_website_first">Enter a website address first</string>
+    <string name="select_html_file">Select HTML file</string>
+    <string name="html_file_selected">HTML file selected</string>
+
+    <!-- ADS / COOKIES -->
+    <string name="block_ads_tracking">Block ads and tracking</string>
+    <string name="hide_cookie_banners">Hide cookie banners</string>
+    <string name="cookie_description">Automatically attempts to remove known cookie and consent banners.</string>
+
+    <!-- UPDATE STATUS -->
+    <string name="show_update_status">Show update status</string>
+    <string name="update_status_description">Shows “Updating…” followed by the time of the latest manual update.</string>
+
+    <!-- VIEWS -->
+    <string name="auto_switch_views">Automatically switch between views</string>
+    <string name="auto_switch_description">The widget can automatically switch between multiple saved areas.</string>
+
+    <!-- APPEARANCE -->
+    <string name="appearance_title">Appearance</string>
+    <string name="appearance_description">Choose the appearance of this widget.</string>
+    <string name="rounded_corners">Rounded corners</string>
+    <string name="show_border">Show border</string>
+    <string name="show_background">Show background</string>
+    <string name="appearance_widget_only">These settings apply only to this widget.</string>
+
+    <!-- UPDATE INTERVAL -->
+    <string name="refresh_minutes">Update frequency: %1$d minutes</string>
+    <string name="refresh_one_hour">Update frequency: 1 hour</string>
+    <string name="refresh_hours">Update frequency: %1$d hours</string>
+
+    <!-- PREVIEW -->
+    <string name="show_preview">Show preview</string>
+
+    <!-- BACKUP -->
+    <string name="backup_title">Backup</string>
+    <string name="backup_description">Save or restore the settings for this widget.</string>
+    <string name="export_backup">Export backup</string>
+    <string name="import_backup">Import backup</string>
+    <string name="save_update_widget">Save and update widget</string>
+
+    <!-- MESSAGES -->
+    <string name="widget_saved">Saved – Web Widget has been updated</string>
+    <string name="widget_not_found">Could not find the widget</string>
+    <string name="backup_saved">Backup saved</string>
+    <string name="backup_save_failed">Could not save backup</string>
+    <string name="backup_version_unsupported">This backup version is not supported</string>
+    <string name="backup_imported">Backup imported</string>
+    <string name="backup_import_failed">Could not import backup</string>
+
+    <!-- REUSE WIDGET -->
+    <string name="no_reusable_widgets">There are no other website widgets to reuse</string>
+    <string name="choose_widget">Choose widget</string>
+    <string name="website_copied">Website copied – now select your new area</string>
+    <string name="cancel">Cancel</string>
+
 </resources>
