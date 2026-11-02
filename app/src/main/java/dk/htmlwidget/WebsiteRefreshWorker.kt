@@ -849,7 +849,7 @@ class WebsiteRefreshWorker(
                      * 2 dp synlig kant.
                      */
                     val borderWidth =
-                        (2f * density)
+                        (3f * density)
                             .coerceAtLeast(1f)
 
                     /*
