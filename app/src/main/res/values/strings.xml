@@ -1,4 +1,74 @@
 <resources>
+
     <string name="app_name">Web Widget</string>
     <string name="widget_description">Viser en hjemmeside eller HTML-fil på startskærmen</string>
+
+    <!-- SPROG -->
+    <string name="language_title">Sprog / Language</string>
+    <string name="language_danish">🇩🇰 Dansk</string>
+    <string name="language_english">🇬🇧 English</string>
+
+    <!-- START -->
+    <string name="setup_description">Indsæt adressen på en hjemmeside eller vælg en HTML-fil fra telefonen.</string>
+    <string name="widget_name_hint">Navn på widget, fx Elpris</string>
+    <string name="website_hint">https://eksempel.dk</string>
+
+    <!-- HJEMMESIDE -->
+    <string name="reuse_website">Genbrug hjemmeside fra anden widget</string>
+    <string name="select_area">Vælg område på websiden</string>
+    <string name="enter_website_first">Indtast først en hjemmesideadresse</string>
+    <string name="select_html_file">Vælg HTML-fil</string>
+    <string name="html_file_selected">HTML-fil valgt</string>
+
+    <!-- REKLAMER / COOKIES -->
+    <string name="block_ads_tracking">Bloker reklamer og tracking</string>
+    <string name="hide_cookie_banners">Skjul cookie-bannere</string>
+    <string name="cookie_description">Forsøger automatisk at fjerne kendte cookie- og samtykke-bannere.</string>
+
+    <!-- OPDATERINGSSTATUS -->
+    <string name="show_update_status">Vis opdateringsstatus</string>
+    <string name="update_status_description">Viser “Opdaterer…” og derefter tidspunktet for den seneste manuelle opdatering.</string>
+
+    <!-- VISNINGER -->
+    <string name="auto_switch_views">Skift automatisk mellem visninger</string>
+    <string name="auto_switch_description">Widgetten kan automatisk skifte mellem flere gemte områder.</string>
+
+    <!-- UDSEENDE -->
+    <string name="appearance_title">Udseende</string>
+    <string name="appearance_description">Vælg udseendet for denne widget.</string>
+    <string name="rounded_corners">Afrundede hjørner</string>
+    <string name="show_border">Vis kant</string>
+    <string name="show_background">Vis baggrund</string>
+    <string name="appearance_widget_only">Indstillingerne gælder kun for denne widget.</string>
+
+    <!-- OPDATERINGSINTERVAL -->
+    <string name="refresh_minutes">Opdateringsfrekvens: %1$d minutter</string>
+    <string name="refresh_one_hour">Opdateringsfrekvens: 1 time</string>
+    <string name="refresh_hours">Opdateringsfrekvens: %1$d timer</string>
+
+    <!-- PREVIEW -->
+    <string name="show_preview">Vis preview</string>
+
+    <!-- BACKUP -->
+    <string name="backup_title">Backup</string>
+    <string name="backup_description">Gem eller gendan indstillingerne for denne widget.</string>
+    <string name="export_backup">Eksporter backup</string>
+    <string name="import_backup">Importer backup</string>
+    <string name="save_update_widget">Gem og opdater widget</string>
+
+    <!-- BESKEDER -->
+    <string name="widget_saved">Gemt – Web Widget er opdateret</string>
+    <string name="widget_not_found">Kunne ikke finde widgetten</string>
+    <string name="backup_saved">Backup gemt</string>
+    <string name="backup_save_failed">Kunne ikke gemme backup</string>
+    <string name="backup_version_unsupported">Backup-versionen understøttes ikke</string>
+    <string name="backup_imported">Backup importeret</string>
+    <string name="backup_import_failed">Kunne ikke importere backup</string>
+
+    <!-- GENBRUG WIDGET -->
+    <string name="no_reusable_widgets">Der er ingen andre website-widgets at genbruge</string>
+    <string name="choose_widget">Vælg widget</string>
+    <string name="website_copied">Hjemmesiden er kopieret – vælg nu dit nye område</string>
+    <string name="cancel">Annuller</string>
+
 </resources>
