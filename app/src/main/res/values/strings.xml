@@ -82,5 +82,11 @@
     <string name="crop_add_extra_view">Tilføj som ekstra visning</string>
     <string name="crop_one_saved_view">1 gemt visning</string>
     <string name="crop_saved_views">%1$d gemte visninger</string>
+
+    <!-- PREVIEW-SKÆRM -->
+    <string name="preview_title">Preview</string>
+    <string name="preview_title_named">Preview · %1$s</string>
+    <string name="preview_description">Sådan ser det senest gemte billede til widgetten ud.</string>
+    <string name="preview_none">Der er endnu ikke et preview.</string>
     
 </resources>
