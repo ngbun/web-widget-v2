@@ -5,10 +5,11 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
-        android:name=".WebWidgetApplication"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar"
-        android:label="HTML Widget"
-        android:usesCleartextTraffic="true">
+    android:name=".WebWidgetApplication"
+    android:theme="@android:style/Theme.Material.Light.NoActionBar"
+    android:label="HTML Widget"
+    android:icon="@drawable/web_widget_icon"
+    android:usesCleartextTraffic="true">
 
         <activity
             android:name=".SetupActivity"
