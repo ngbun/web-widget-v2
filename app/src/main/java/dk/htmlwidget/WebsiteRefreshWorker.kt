@@ -860,7 +860,7 @@ class WebsiteRefreshWorker(
                      * egen afrundede beskæring.
                      */
                     val borderInset =
-    0.75f * density
+    0.50f * density
 
 val cornerRadius =
     18f * density
@@ -878,7 +878,7 @@ val cornerRadius =
 
                             color =
                                 android.graphics.Color.argb(
-                                    128,
+                                    255,
                                     0,
                                     0,
                                     0
