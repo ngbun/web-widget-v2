@@ -3,7 +3,9 @@ package dk.htmlwidget
 import android.app.Activity
 import android.app.AlertDialog
 import android.appwidget.AppWidgetManager
+import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.widget.*
@@ -12,6 +14,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import org.json.JSONObject
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 class SetupActivity : Activity() {
@@ -77,6 +80,53 @@ class SetupActivity : Activity() {
     private val importBackupRequest =
         44
 
+    /*
+     * ----------------------------------------
+     * HENT TEKST I VALGT SPROG
+     * ----------------------------------------
+     */
+    private fun text(
+        resId: Int,
+        vararg formatArgs: Any
+    ): String {
+
+        val language =
+            prefs.getString(
+                "appLanguage",
+                "da"
+            ) ?: "da"
+
+        val configuration =
+            Configuration(
+                resources.configuration
+            )
+
+        configuration.setLocale(
+            Locale(language)
+        )
+
+        val localizedContext: Context =
+            createConfigurationContext(
+                configuration
+            )
+
+        return if (
+            formatArgs.isEmpty()
+        ) {
+
+            localizedContext.getString(
+                resId
+            )
+
+        } else {
+
+            localizedContext.getString(
+                resId,
+                *formatArgs
+            )
+        }
+    }
+
     override fun onCreate(
         savedInstanceState: Bundle?
     ) {
@@ -114,7 +164,9 @@ class SetupActivity : Activity() {
             TextView(this).apply {
 
                 text =
-                    "Web Widget"
+                    text(
+                        R.string.app_name
+                    )
 
                 textSize =
                     26f
@@ -130,7 +182,9 @@ class SetupActivity : Activity() {
             TextView(this).apply {
 
                 text =
-                    "Sprog / Language"
+                    text(
+                        R.string.language_title
+                    )
 
                 textSize =
                     18f
@@ -146,8 +200,12 @@ class SetupActivity : Activity() {
 
         val languageOptions =
             arrayOf(
-                "🇩🇰 Dansk",
-                "🇬🇧 English"
+                text(
+                    R.string.language_danish
+                ),
+                text(
+                    R.string.language_english
+                )
             )
 
         val languageSpinner =
@@ -232,7 +290,9 @@ class SetupActivity : Activity() {
             TextView(this).apply {
 
                 text =
-                    "Indsæt adressen på en hjemmeside eller vælg en HTML-fil fra telefonen."
+                    text(
+                        R.string.setup_description
+                    )
 
                 textSize =
                     16f
@@ -248,7 +308,9 @@ class SetupActivity : Activity() {
             EditText(this).apply {
 
                 hint =
-                    "Navn på widget, fx Elpris"
+                    text(
+                        R.string.widget_name_hint
+                    )
 
                 setText(
                     prefs.getString(
@@ -275,7 +337,9 @@ class SetupActivity : Activity() {
             EditText(this).apply {
 
                 hint =
-                    "https://eksempel.dk"
+                    text(
+                        R.string.website_hint
+                    )
 
                 setText(
                     prefs.getString(
@@ -302,7 +366,9 @@ class SetupActivity : Activity() {
             Button(this).apply {
 
                 text =
-                    "Genbrug hjemmeside fra anden widget"
+                    text(
+                        R.string.reuse_website
+                    )
 
                 setOnClickListener {
 
@@ -320,7 +386,9 @@ class SetupActivity : Activity() {
             Button(this).apply {
 
                 text =
-                    "Vælg område på websiden"
+                    text(
+                        R.string.select_area
+                    )
 
                 setOnClickListener {
 
@@ -335,7 +403,9 @@ class SetupActivity : Activity() {
 
                         Toast.makeText(
                             this@SetupActivity,
-                            "Indtast først en hjemmesideadresse",
+                            text(
+                                R.string.enter_website_first
+                            ),
                             Toast.LENGTH_SHORT
                         ).show()
 
@@ -382,7 +452,9 @@ class SetupActivity : Activity() {
             Button(this).apply {
 
                 text =
-                    "Vælg HTML-fil"
+                    text(
+                        R.string.select_html_file
+                    )
 
                 setOnClickListener {
 
@@ -421,7 +493,9 @@ class SetupActivity : Activity() {
             CheckBox(this).apply {
 
                 text =
-                    "Bloker reklamer og tracking"
+                    text(
+                        R.string.block_ads_tracking
+                    )
 
                 isChecked =
                     prefs.getBoolean(
@@ -443,7 +517,9 @@ class SetupActivity : Activity() {
             CheckBox(this).apply {
 
                 text =
-                    "Skjul cookie-bannere"
+                    text(
+                        R.string.hide_cookie_banners
+                    )
 
                 isChecked =
                     prefs.getBoolean(
@@ -463,7 +539,9 @@ class SetupActivity : Activity() {
             TextView(this).apply {
 
                 text =
-                    "Forsøger automatisk at fjerne kendte cookie- og samtykke-bannere."
+                    text(
+                        R.string.cookie_description
+                    )
 
                 textSize =
                     13f
@@ -486,7 +564,9 @@ class SetupActivity : Activity() {
             CheckBox(this).apply {
 
                 text =
-                    "Vis opdateringsstatus"
+                    text(
+                        R.string.show_update_status
+                    )
 
                 isChecked =
                     prefs.getBoolean(
@@ -503,7 +583,9 @@ class SetupActivity : Activity() {
             TextView(this).apply {
 
                 text =
-                    "Viser “Opdaterer…” og derefter tidspunktet for den seneste manuelle opdatering."
+                    text(
+                        R.string.update_status_description
+                    )
 
                 textSize =
                     13f
@@ -526,7 +608,9 @@ class SetupActivity : Activity() {
             CheckBox(this).apply {
 
                 text =
-                    "Skift automatisk mellem visninger"
+                    text(
+                        R.string.auto_switch_views
+                    )
 
                 isChecked =
                     prefs.getBoolean(
@@ -543,7 +627,9 @@ class SetupActivity : Activity() {
             TextView(this).apply {
 
                 text =
-                    "Widgetten kan automatisk skifte mellem flere gemte områder."
+                    text(
+                        R.string.auto_switch_description
+                    )
 
                 textSize =
                     13f
@@ -566,7 +652,9 @@ class SetupActivity : Activity() {
             TextView(this).apply {
 
                 text =
-                    "Udseende"
+                    text(
+                        R.string.appearance_title
+                    )
 
                 textSize =
                     20f
@@ -584,7 +672,9 @@ class SetupActivity : Activity() {
             TextView(this).apply {
 
                 text =
-                    "Vælg udseendet for denne widget."
+                    text(
+                        R.string.appearance_description
+                    )
 
                 textSize =
                     13f
@@ -605,7 +695,9 @@ class SetupActivity : Activity() {
             CheckBox(this).apply {
 
                 text =
-                    "Afrundede hjørner"
+                    text(
+                        R.string.rounded_corners
+                    )
 
                 isChecked =
                     prefs.getBoolean(
@@ -625,7 +717,9 @@ class SetupActivity : Activity() {
             CheckBox(this).apply {
 
                 text =
-                    "Vis kant"
+                    text(
+                        R.string.show_border
+                    )
 
                 isChecked =
                     prefs.getBoolean(
@@ -645,7 +739,9 @@ class SetupActivity : Activity() {
             CheckBox(this).apply {
 
                 text =
-                    "Vis baggrund"
+                    text(
+                        R.string.show_background
+                    )
 
                 isChecked =
                     prefs.getBoolean(
@@ -662,7 +758,9 @@ class SetupActivity : Activity() {
             TextView(this).apply {
 
                 text =
-                    "Indstillingerne gælder kun for denne widget."
+                    text(
+                        R.string.appearance_widget_only
+                    )
 
                 textSize =
                     13f
@@ -756,7 +854,9 @@ class SetupActivity : Activity() {
             Button(this).apply {
 
                 text =
-                    "Vis preview"
+                    text(
+                        R.string.show_preview
+                    )
 
                 setOnClickListener {
 
@@ -788,7 +888,9 @@ class SetupActivity : Activity() {
             TextView(this).apply {
 
                 text =
-                    "Backup"
+                    text(
+                        R.string.backup_title
+                    )
 
                 textSize =
                     20f
@@ -806,7 +908,9 @@ class SetupActivity : Activity() {
             TextView(this).apply {
 
                 text =
-                    "Gem eller gendan indstillingerne for denne widget."
+                    text(
+                        R.string.backup_description
+                    )
 
                 textSize =
                     13f
@@ -827,7 +931,9 @@ class SetupActivity : Activity() {
             Button(this).apply {
 
                 text =
-                    "Eksporter backup"
+                    text(
+                        R.string.export_backup
+                    )
 
                 setOnClickListener {
 
@@ -843,7 +949,9 @@ class SetupActivity : Activity() {
             Button(this).apply {
 
                 text =
-                    "Importer backup"
+                    text(
+                        R.string.import_backup
+                    )
 
                 setOnClickListener {
 
@@ -859,7 +967,9 @@ class SetupActivity : Activity() {
             Button(this).apply {
 
                 text =
-                    "Gem og opdater widget"
+                    text(
+                        R.string.save_update_widget
+                    )
 
                 setOnClickListener {
 
@@ -900,7 +1010,10 @@ class SetupActivity : Activity() {
                 minutes < 60
             ) {
 
-                "Opdateringsfrekvens: $minutes minutter"
+                text(
+                    R.string.refresh_minutes,
+                    minutes
+                )
 
             } else {
 
@@ -911,11 +1024,16 @@ class SetupActivity : Activity() {
                     hours == 1
                 ) {
 
-                    "Opdateringsfrekvens: 1 time"
+                    text(
+                        R.string.refresh_one_hour
+                    )
 
                 } else {
 
-                    "Opdateringsfrekvens: $hours timer"
+                    text(
+                        R.string.refresh_hours,
+                        hours
+                    )
                 }
             }
     }
@@ -1056,7 +1174,9 @@ class SetupActivity : Activity() {
 
             Toast.makeText(
                 this,
-                "Gemt – HTML Widget er opdateret",
+                text(
+                    R.string.widget_saved
+                ),
                 Toast.LENGTH_LONG
             ).show()
 
@@ -1119,7 +1239,9 @@ class SetupActivity : Activity() {
 
             Toast.makeText(
                 this,
-                "Kunne ikke finde widgetten",
+                text(
+                    R.string.widget_not_found
+                ),
                 Toast.LENGTH_SHORT
             ).show()
 
@@ -1164,7 +1286,9 @@ class SetupActivity : Activity() {
 
             Toast.makeText(
                 this,
-                "Kunne ikke finde widgetten",
+                text(
+                    R.string.widget_not_found
+                ),
                 Toast.LENGTH_SHORT
             ).show()
 
@@ -1478,12 +1602,14 @@ class SetupActivity : Activity() {
                     )
                 }
                 ?: throw Exception(
-                    "Kunne ikke åbne filen"
+                    "Could not open file"
                 )
 
             Toast.makeText(
                 this,
-                "Backup gemt",
+                text(
+                    R.string.backup_saved
+                ),
                 Toast.LENGTH_LONG
             ).show()
 
@@ -1491,7 +1617,9 @@ class SetupActivity : Activity() {
 
             Toast.makeText(
                 this,
-                "Kunne ikke gemme backup",
+                text(
+                    R.string.backup_save_failed
+                ),
                 Toast.LENGTH_LONG
             ).show()
         }
@@ -1519,7 +1647,7 @@ class SetupActivity : Activity() {
                         it.readText()
                     }
                     ?: throw Exception(
-                        "Kunne ikke læse filen"
+                        "Could not read file"
                     )
 
             val backup =
@@ -1539,7 +1667,9 @@ class SetupActivity : Activity() {
 
                 Toast.makeText(
                     this,
-                    "Backup-versionen understøttes ikke",
+                    text(
+                        R.string.backup_version_unsupported
+                    ),
                     Toast.LENGTH_LONG
                 ).show()
 
@@ -1551,7 +1681,7 @@ class SetupActivity : Activity() {
                     "widget"
                 )
                     ?: throw Exception(
-                        "Widget-data mangler"
+                        "Widget data missing"
                     )
 
             val editor =
@@ -1860,7 +1990,9 @@ class SetupActivity : Activity() {
 
             Toast.makeText(
                 this,
-                "Backup importeret",
+                text(
+                    R.string.backup_imported
+                ),
                 Toast.LENGTH_LONG
             ).show()
 
@@ -1868,7 +2000,9 @@ class SetupActivity : Activity() {
 
             Toast.makeText(
                 this,
-                "Kunne ikke importere backup",
+                text(
+                    R.string.backup_import_failed
+                ),
                 Toast.LENGTH_LONG
             ).show()
         }
@@ -2017,7 +2151,9 @@ class SetupActivity : Activity() {
 
             Toast.makeText(
                 this,
-                "Der er ingen andre website-widgets at genbruge",
+                text(
+                    R.string.no_reusable_widgets
+                ),
                 Toast.LENGTH_SHORT
             ).show()
 
@@ -2035,7 +2171,9 @@ class SetupActivity : Activity() {
             this
         )
             .setTitle(
-                "Vælg widget"
+                text(
+                    R.string.choose_widget
+                )
             )
             .setItems(
                 names
@@ -2067,13 +2205,17 @@ class SetupActivity : Activity() {
 
                     Toast.makeText(
                         this,
-                        "Hjemmesiden er kopieret – vælg nu dit nye område",
+                        text(
+                            R.string.website_copied
+                        ),
                         Toast.LENGTH_LONG
                     ).show()
                 }
             }
             .setNegativeButton(
-                "Annuller",
+                text(
+                    R.string.cancel
+                ),
                 null
             )
             .show()
@@ -2214,7 +2356,9 @@ class SetupActivity : Activity() {
 
                 Toast.makeText(
                     this,
-                    "HTML-fil valgt",
+                    text(
+                        R.string.html_file_selected
+                    ),
                     Toast.LENGTH_SHORT
                 ).show()
             }
