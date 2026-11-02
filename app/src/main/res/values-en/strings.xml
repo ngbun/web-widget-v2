@@ -1,1 +1,4 @@
-
+<resources>
+    <string name="app_name">Web Widget</string>
+    <string name="widget_description">Displays a website or HTML file on the home screen</string>
+</resources>
