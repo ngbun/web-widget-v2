@@ -114,12 +114,119 @@ class SetupActivity : Activity() {
             TextView(this).apply {
 
                 text =
-                    "HTML Widget"
+                    "Web Widget"
 
                 textSize =
                     26f
             }
         )
+
+        /*
+         * ----------------------------------------
+         * SPROG / LANGUAGE
+         * ----------------------------------------
+         */
+        layout.addView(
+            TextView(this).apply {
+
+                text =
+                    "Sprog / Language"
+
+                textSize =
+                    18f
+
+                setPadding(
+                    0,
+                    25,
+                    0,
+                    5
+                )
+            }
+        )
+
+        val languageOptions =
+            arrayOf(
+                "🇩🇰 Dansk",
+                "🇬🇧 English"
+            )
+
+        val languageSpinner =
+            Spinner(this).apply {
+
+                adapter =
+                    ArrayAdapter(
+                        this@SetupActivity,
+                        android.R.layout.simple_spinner_dropdown_item,
+                        languageOptions
+                    )
+
+                val savedLanguage =
+                    prefs.getString(
+                        "appLanguage",
+                        "da"
+                    )
+
+                setSelection(
+                    if (
+                        savedLanguage == "en"
+                    ) {
+                        1
+                    } else {
+                        0
+                    }
+                )
+            }
+
+        layout.addView(
+            languageSpinner
+        )
+
+        languageSpinner.onItemSelectedListener =
+            object :
+                AdapterView.OnItemSelectedListener {
+
+                override fun onItemSelected(
+                    parent: AdapterView<*>?,
+                    view: android.view.View?,
+                    position: Int,
+                    id: Long
+                ) {
+
+                    val newLanguage =
+                        if (
+                            position == 1
+                        ) {
+                            "en"
+                        } else {
+                            "da"
+                        }
+
+                    val oldLanguage =
+                        prefs.getString(
+                            "appLanguage",
+                            "da"
+                        )
+
+                    if (
+                        newLanguage != oldLanguage
+                    ) {
+
+                        prefs.edit()
+                            .putString(
+                                "appLanguage",
+                                newLanguage
+                            )
+                            .apply()
+
+                        recreate()
+                    }
+                }
+
+                override fun onNothingSelected(
+                    parent: AdapterView<*>?
+                ) {
+                }
+            }
 
         layout.addView(
             TextView(this).apply {
@@ -775,7 +882,8 @@ class SetupActivity : Activity() {
             }
         )
     }
-        /*
+
+    /*
      * ----------------------------------------
      * OPDATER REFRESH-TEKST
      * ----------------------------------------
@@ -955,8 +1063,7 @@ class SetupActivity : Activity() {
             finish()
         }
     }
-
-    /*
+        /*
      * ----------------------------------------
      * PLANLÆG AUTOMATISK REFRESH
      * ----------------------------------------
@@ -1766,8 +1873,7 @@ class SetupActivity : Activity() {
             ).show()
         }
     }
-
-    /*
+        /*
      * ----------------------------------------
      * OPDATER SKÆRM EFTER IMPORT
      * ----------------------------------------
@@ -1984,7 +2090,7 @@ class SetupActivity : Activity() {
         val result =
             mutableListOf<
                 Pair<Int, String>
-                >()
+            >()
 
         prefs.all.keys
             .filter {
