@@ -71,4 +71,16 @@
     <string name="website_copied">Website copied – now select your new area</string>
     <string name="cancel">Cancel</string>
 
+    <!-- SELECT AREA / CROP -->
+    <string name="crop_invalid_website">No valid website has been saved.</string>
+    <string name="crop_instructions">Scroll the website. Move the red frame or freely drag any of the 4 corners.</string>
+    <string name="crop_multiple_views_info">You can save the area as the normal view or add it as an extra view for automatic switching.</string>
+    <string name="crop_position_error">Could not determine the website position.</string>
+    <string name="crop_view_saved">View %1$d has been saved</string>
+    <string name="crop_save_error">Could not save the selected area.</string>
+    <string name="crop_save_area">Save this area</string>
+    <string name="crop_add_extra_view">Add as extra view</string>
+    <string name="crop_one_saved_view">1 saved view</string>
+    <string name="crop_saved_views">%1$d saved views</string>
+    
 </resources>
