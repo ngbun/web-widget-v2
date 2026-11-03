@@ -88,5 +88,10 @@
     <string name="preview_title_named">Preview · %1$s</string>
     <string name="preview_description">Sådan ser det senest gemte billede til widgetten ud.</string>
     <string name="preview_none">Der er endnu ikke et preview.</string>
+
+    <!-- WIDGET STATUS -->
+    <string name="status_updating">Opdaterer…</string>
+    <string name="status_updated">Opdateret %1$s</string>
+    <string name="status_update_failed">Kunne ikke opdatere</string>
     
 </resources>
