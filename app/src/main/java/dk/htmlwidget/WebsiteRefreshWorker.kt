@@ -210,9 +210,31 @@ class WebsiteRefreshWorker(
                 R.layout.widget_layout
             )
 
+        val language =
+            prefs.getString(
+                "appLanguage",
+                "da"
+            ) ?: "da"
+
+        val configuration =
+            android.content.res.Configuration(
+                context.resources.configuration
+            )
+
+        configuration.setLocale(
+            Locale(language)
+        )
+
+        val localizedContext =
+            context.createConfigurationContext(
+                configuration
+            )
+
         views.setTextViewText(
             R.id.widget_status,
-            "Kunne ikke opdatere"
+            localizedContext.getString(
+                R.string.status_update_failed
+            )
         )
 
         views.setViewVisibility(
@@ -604,9 +626,32 @@ class WebsiteRefreshWorker(
                     R.layout.widget_layout
                 )
 
+            val language =
+                prefs.getString(
+                    "appLanguage",
+                    "da"
+                ) ?: "da"
+
+            val configuration =
+                android.content.res.Configuration(
+                    context.resources.configuration
+                )
+
+            configuration.setLocale(
+                Locale(language)
+            )
+
+            val localizedContext =
+                context.createConfigurationContext(
+                    configuration
+                )
+
             views.setTextViewText(
                 R.id.widget_status,
-                "Opdateret $time"
+                localizedContext.getString(
+                    R.string.status_updated,
+                    time
+                )
             )
 
             views.setViewVisibility(
@@ -725,7 +770,8 @@ class WebsiteRefreshWorker(
 
                         0
                     }
-                                    val drawY =
+
+                val drawY =
                     if (
                         cropEnabled
                     ) {
@@ -820,8 +866,7 @@ class WebsiteRefreshWorker(
 
                         selectedBitmap
                     }
-
-                /*
+                                    /*
                  * ----------------------------------------
                  * KANT DIREKTE PÅ WIDGET-BILLEDET
                  * ----------------------------------------
@@ -860,10 +905,10 @@ class WebsiteRefreshWorker(
                      * egen afrundede beskæring.
                      */
                     val borderInset =
-    0.50f * density
+                        0.50f * density
 
-val cornerRadius =
-    18f * density
+                    val cornerRadius =
+                        18f * density
 
                     val borderPaint =
                         Paint(
