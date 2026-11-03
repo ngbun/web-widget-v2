@@ -338,6 +338,26 @@ class HtmlRenderService : Service() {
                             Date()
                         )
 
+                    val language =
+                        prefs.getString(
+                            "appLanguage",
+                            "da"
+                        ) ?: "da"
+
+                    val configuration =
+                        android.content.res.Configuration(
+                            resources.configuration
+                        )
+
+                    configuration.setLocale(
+                        Locale(language)
+                    )
+
+                    val localizedContext =
+                        createConfigurationContext(
+                            configuration
+                        )
+
                     val statusViews =
                         RemoteViews(
                             packageName,
@@ -346,7 +366,10 @@ class HtmlRenderService : Service() {
 
                     statusViews.setTextViewText(
                         R.id.widget_status,
-                        "Opdateret $time"
+                        localizedContext.getString(
+                            R.string.status_updated,
+                            time
+                        )
                     )
 
                     statusViews.setViewVisibility(
