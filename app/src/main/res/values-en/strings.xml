@@ -88,5 +88,10 @@
     <string name="preview_title_named">Preview · %1$s</string>
     <string name="preview_description">This is the latest saved image for the widget.</string>
     <string name="preview_none">There is no preview yet.</string>
+
+    <!-- WIDGET STATUS -->
+    <string name="status_updating">Updating…</string>
+    <string name="status_updated">Updated %1$s</string>
+    <string name="status_update_failed">Could not update</string>
     
 </resources>
