@@ -699,10 +699,32 @@ open class HtmlWidgetProvider :
                 views
             )
 
-            views.setTextViewText(
-                R.id.widget_status,
-                "Opdaterer…"
-            )
+            val language =
+    prefs.getString(
+        "appLanguage",
+        "da"
+    ) ?: "da"
+
+val configuration =
+    android.content.res.Configuration(
+        context.resources.configuration
+    )
+
+configuration.setLocale(
+    java.util.Locale(language)
+)
+
+val localizedContext =
+    context.createConfigurationContext(
+        configuration
+    )
+
+views.setTextViewText(
+    R.id.widget_status,
+    localizedContext.getString(
+        R.string.status_updating
+    )
+)
 
             views.setViewVisibility(
                 R.id.widget_status,
